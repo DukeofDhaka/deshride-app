@@ -64,23 +64,23 @@ export function DriverOnboardingPage() {
     event.preventDefault();
     setError(null);
     if (!phone.trim() || phone.replace(/\D/g, "").length < 11) {
-      setError("A valid phone number is required — riders reach you on it.");
+      setError("সঠিক ফোন নম্বর দিন — যাত্রীরা এতেই যোগাযোগ করবেন।");
       return;
     }
     if (!looksLikeNid(ownerNid)) {
-      setError("The car owner's NID should be 10, 13 or 17 digits.");
+      setError("মালিকের এনআইডি ১০, ১৩ বা ১৭ সংখ্যার হওয়ার কথা।");
       return;
     }
     if (!ownerIsDriver && !looksLikeNid(driverNid)) {
-      setError("The driver's NID should be 10, 13 or 17 digits.");
+      setError("ড্রাইভারের এনআইডি ১০, ১৩ বা ১৭ সংখ্যার হওয়ার কথা।");
       return;
     }
     if (!plate.trim()) {
-      setError("Add the car's licence plate number, e.g. Dhaka Metro GA 12-3456.");
+      setError("লাইসেন্স প্লেট নম্বরটি দিন, যেমন: ঢাকা মেট্রো গ 12-3456।");
       return;
     }
     if (!carColor.trim()) {
-      setError("Add the car's color — riders use it to spot you at pickup.");
+      setError("গাড়ির রংটি দিন — পিকআপে চিনতে সুবিধা হয়।");
       return;
     }
 
@@ -112,11 +112,11 @@ export function DriverOnboardingPage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>Driver profile</h1>
+        <h1>ড্রাইভার প্রোফাইল</h1>
         <p>
           {draft
-            ? "One-time step before your ride goes live — this is what makes DeshRide safer than a Facebook group."
-            : "Complete your driver details so you can post rides."}
+            ? "রাইড লাইভ হওয়ার আগে একবারের কাজ — এটাই দেশরাইডকে ফেসবুক গ্রুপের চেয়ে নিরাপদ করে।"
+            : "রাইড পোস্ট করতে ড্রাইভার তথ্য পূরণ করুন।"}
         </p>
       </div>
 
@@ -124,7 +124,7 @@ export function DriverOnboardingPage() {
         <form className="post-form" onSubmit={handleSubmit}>
           <div className="field">
             <label className="field__label" htmlFor="ob-phone">
-              Phone number
+              ফোন নম্বর
             </label>
             <input
               id="ob-phone"
@@ -138,7 +138,7 @@ export function DriverOnboardingPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="ob-owner-nid">
-              Car owner's NID number
+              গাড়ির মালিকের এনআইডি
             </label>
             <input
               id="ob-owner-nid"
@@ -156,13 +156,13 @@ export function DriverOnboardingPage() {
               checked={ownerIsDriver}
               onChange={(e) => setOwnerIsDriver(e.target.checked)}
             />
-            <span>The owner is also the driver</span>
+            <span>মালিক নিজেই ড্রাইভার</span>
           </label>
 
           {!ownerIsDriver && (
             <div className="field">
               <label className="field__label" htmlFor="ob-driver-nid">
-                Driver's NID number
+                ড্রাইভারের এনআইডি
               </label>
               <input
                 id="ob-driver-nid"
@@ -178,25 +178,25 @@ export function DriverOnboardingPage() {
           <div className="search-card__row">
             <div className="field">
               <label className="field__label" htmlFor="ob-plate">
-                Licence plate
+                লাইসেন্স প্লেট
               </label>
               <input
                 id="ob-plate"
                 className="field__input"
                 value={plate}
-                placeholder="Dhaka Metro GA 12-3456"
+                placeholder="ঢাকা মেট্রো গ 12-3456"
                 onChange={(e) => setPlate(e.target.value)}
               />
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ob-color">
-                Car color
+                গাড়ির রং
               </label>
               <input
                 id="ob-color"
                 className="field__input"
                 value={carColor}
-                placeholder="Silver"
+                placeholder="সিলভার"
                 onChange={(e) => setCarColor(e.target.value)}
               />
             </div>
@@ -204,7 +204,7 @@ export function DriverOnboardingPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="ob-photo">
-              Full photo of the car, plate visible
+              গাড়ির ছবি — প্লেটসহ পুরো গাড়ি
             </label>
             <input
               id="ob-photo"
@@ -215,15 +215,14 @@ export function DriverOnboardingPage() {
             />
             {carPhoto && <img className="car-photo-preview" src={carPhoto} alt="Your car" />}
             <p className="field__hint">
-              Riders see this before booking. You can add or replace it later from your
-              profile.
+              বুকিংয়ের আগে যাত্রীরা এটি দেখবেন। পরে প্রোফাইল থেকেও বদলাতে পারবেন।
             </p>
           </div>
 
           {error && <p className="form-error">{error}</p>}
 
           <button className="primary-button primary-button--full" type="submit">
-            {draft ? "Save & publish my ride" : "Save driver profile"}
+            {draft ? "সেভ করে রাইড পোস্ট করুন" : "ড্রাইভার প্রোফাইল সেভ করুন"}
           </button>
           <p className="detail-note">
             In production these details are verified against Porichoy (government NID
@@ -234,12 +233,11 @@ export function DriverOnboardingPage() {
 
         <aside className="detail-aside">
           <div className="detail-panel">
-            <h2>Why we ask</h2>
+            <h2>কেন চাই</h2>
             <ul className="panel-list">
-              <li>NID + face match is what makes every profile real.</li>
-              <li>The plate photo lets riders confirm the exact car at pickup.</li>
-              <li>BRTA ridesharing enlistment requires these documents anyway — one
-                form now covers both.</li>
+              <li>এনআইডি + ফেস ম্যাচেই প্রতিটি প্রোফাইল আসল।</li>
+              <li>প্লেটের ছবি দেখে যাত্রীরা পিকআপে গাড়ি চিনে নেন।</li>
+              <li>বিআরটিএ তালিকাভুক্তিতেও এই কাগজগুলোই লাগে — এক ফর্মেই দুই কাজ।</li>
             </ul>
           </div>
         </aside>

@@ -43,17 +43,17 @@ export function MyRidesPage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>My rides</h1>
-        <p>Everything you're driving and everything you've requested, in one place.</p>
+        <h1>আমার রাইড</h1>
+        <p>আপনি যা চালাচ্ছেন আর যেখানে যাচ্ছেন — সব এক জায়গায়।</p>
       </div>
 
       {error && <div className="banner banner--warn">{error}</div>}
 
       <div className="detail-panel">
-        <h2>You're driving</h2>
+        <h2>আপনি চালাচ্ছেন</h2>
         {driving.length === 0 && (
           <p className="detail-note">
-            No posted rides yet. <Link className="secondary-link" to="/post">Post your first ride →</Link>
+            এখনো কোনো রাইড পোস্ট করেননি। <Link className="secondary-link" to="/post">প্রথম রাইডটি দিন →</Link>
           </p>
         )}
         <div className="stack">
@@ -74,14 +74,14 @@ export function MyRidesPage() {
                     <span>
                       {formatDeparture(ride.departure)} · {formatBDT(ride.pricePerSeat)}/seat ·{" "}
                       {done
-                        ? "trip completed"
-                        : `${seatsLeft(ride)}/${ride.seatsTotal} seats open`}
+                        ? "ট্রিপ শেষ"
+                        : `${seatsLeft(ride)}/${ride.seatsTotal} সিট খালি`}
                     </span>
                   </div>
                   <div className="manage-card__actions">
-                    {done && <span className="chip chip--good">Payments released</span>}
+                    {done && <span className="chip chip--good">পেমেন্ট রিলিজড</span>}
                     <Link className="secondary-link" to={`/ride/${ride.id}`}>
-                      View
+                      দেখুন
                     </Link>
                     {!done && (
                       <button
@@ -92,7 +92,7 @@ export function MyRidesPage() {
                           refresh();
                         }}
                       >
-                        Cancel ride
+                        রাইড বাতিল
                       </button>
                     )}
                   </div>
@@ -109,7 +109,7 @@ export function MyRidesPage() {
                             (<a className="secondary-link" href={`tel:${b.guestPhone}`}>{b.guestPhone}</a>)
                           </>
                         )}{" "}
-                        — {b.seats} seat{b.seats > 1 ? "s" : ""} · paid by {b.payMethod} ·{" "}
+                        — {b.seats}টি সিট · {b.payMethod} ·{" "}
                         <span
                           className={`chip ${
                             b.payStatus === "released"
@@ -120,10 +120,10 @@ export function MyRidesPage() {
                           }`}
                         >
                           {b.payStatus === "released"
-                            ? "Paid out to you"
+                            ? "আপনাকে পরিশোধ করা হয়েছে"
                             : b.payStatus === "releasing"
-                              ? "Releasing — rider confirms or auto in 24h"
-                              : "Held by DeshRide"}
+                              ? "রিলিজ হচ্ছে — যাত্রী কনফার্ম বা ২৪ ঘণ্টায় অটো"
+                              : "দেশরাইডের কাছে জমা"}
                         </span>
                       </li>
                     ))}
@@ -139,7 +139,7 @@ export function MyRidesPage() {
                       refresh();
                     }}
                   >
-                    Mark trip completed — start releasing {formatBDT(heldTotal)}
+                    ট্রিপ শেষ — {formatBDT(heldTotal)} রিলিজ শুরু করুন
                   </button>
                 )}
 
@@ -149,8 +149,8 @@ export function MyRidesPage() {
                       {requests.map((b) => (
                         <div key={b.id} className="request-row">
                           <span>
-                            <strong>{b.guestName}</strong> wants {b.seats} seat
-                            {b.seats > 1 ? "s" : ""} · pays by {b.payMethod}
+                            <strong>{b.guestName}</strong> চান {b.seats}টি সিট ·
+                            {" "}{b.payMethod}-এ দেবেন
                           </span>
                           <span className="request-row__actions">
                             <button
@@ -158,21 +158,21 @@ export function MyRidesPage() {
                               className="ghost-button ghost-button--good"
                               onClick={() => handleDecision(b.id, "accepted")}
                             >
-                              Accept — fare goes into escrow
+                              গ্রহণ করুন — ভাড়া এসক্রোতে যাবে
                             </button>
                             <button
                               type="button"
                               className="ghost-button"
                               onClick={() => handleDecision(b.id, "declined")}
                             >
-                              Decline
+                              না
                             </button>
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="detail-note">No pending requests right now.</p>
+                    <p className="detail-note">এই মুহূর্তে কোনো রিকোয়েস্ট নেই।</p>
                   ))}
               </div>
             );
@@ -181,10 +181,10 @@ export function MyRidesPage() {
       </div>
 
       <div className="detail-panel">
-        <h2>You're travelling</h2>
+        <h2>আপনি যাচ্ছেন</h2>
         {requested.length === 0 && (
           <p className="detail-note">
-            No seat requests yet. <Link className="secondary-link" to="/">Find a ride →</Link>
+            এখনো কোনো রিকোয়েস্ট করেননি। <Link className="secondary-link" to="/">রাইড খুঁজুন →</Link>
           </p>
         )}
         <div className="stack">
@@ -200,17 +200,16 @@ export function MyRidesPage() {
                       {ride.from.name} → {ride.to.name}
                     </strong>
                     <span>
-                      {formatDeparture(ride.departure)} · {booking.seats} seat
-                      {booking.seats > 1 ? "s" : ""} · {formatBDT(ride.pricePerSeat * booking.seats)}
-                      {booking.payStatus === "held" && " · fare held by DeshRide until the trip ends"}
-                      {booking.payStatus === "releasing" && " · trip done — fare releasing to driver"}
-                      {booking.payStatus === "released" && " · fare paid to driver"}
+                      {formatDeparture(ride.departure)} · {booking.seats}টি সিট · {formatBDT(ride.pricePerSeat * booking.seats)}
+                      {booking.payStatus === "held" && " · ভাড়া দেশরাইডের কাছে জমা"}
+                      {booking.payStatus === "releasing" && " · ট্রিপ শেষ — ভাড়া রিলিজ হচ্ছে"}
+                      {booking.payStatus === "released" && " · ভাড়া ড্রাইভারকে দেওয়া হয়েছে"}
                       {booking.payStatus === "refunded" &&
-                        ` · ${booking.refundPct === 50 ? "50% " : ""}refunded to you`}
+                        ` · ${booking.refundPct === 50 ? "৫০% " : ""}ফেরত পেয়েছেন`}
                     </span>
                     {booking.status === "accepted" && ride.driver.phone && (
                       <span>
-                        Driver: {ride.driver.name} ·{" "}
+                        ড্রাইভার: {ride.driver.name} ·{" "}
                         <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
                           {ride.driver.phone}
                         </a>
@@ -227,15 +226,15 @@ export function MyRidesPage() {
                     }`}
                   >
                     {booking.status === "pending"
-                      ? "Waiting for driver"
+                      ? "ড্রাইভারের অপেক্ষায়"
                       : booking.status === "accepted"
-                        ? "Confirmed"
-                        : "Declined"}
+                        ? "কনফার্মড"
+                        : "হয়নি"}
                   </span>
                 </div>
                 <div className="manage-card__actions">
                   <Link className="secondary-link" to={`/ride/${ride.id}`}>
-                    View ride
+                    রাইড দেখুন
                   </Link>
                   {booking.payStatus === "releasing" && (
                     <button
@@ -246,7 +245,7 @@ export function MyRidesPage() {
                         refresh();
                       }}
                     >
-                      Confirm ride went well — release now
+                      সব ঠিক ছিল — এখনই রিলিজ করুন
                     </button>
                   )}
                   {(booking.status === "pending" ||
@@ -260,8 +259,8 @@ export function MyRidesPage() {
                         refresh();
                       }}
                     >
-                      Cancel request
-                      {booking.payStatus === "held" ? ` (${policy.label.toLowerCase()})` : ""}
+                      রিকোয়েস্ট বাতিল
+                      {booking.payStatus === "held" ? ` (${policy.label})` : ""}
                     </button>
                   )}
                 </div>

@@ -1,17 +1,17 @@
 import type { Spot } from "../types";
 
-// Bounding box for mainland Bangladesh, with a little breathing room.
+// Bounding box for Bangladesh incl. the far-south islands, with margin.
 export const BD_BOUNDS = {
-  minLat: 20.55,
-  maxLat: 26.75,
+  minLat: 20.3,
+  maxLat: 26.7,
   minLng: 87.95,
-  maxLng: 92.8
+  maxLng: 92.75
 };
 
 // SVG canvas keeps the real-world aspect ratio at Bangladesh's latitude,
 // so routes and distances read true on screen.
 export const MAP_W = 500;
-export const MAP_H = 696;
+export const MAP_H = 728;
 
 export function project(lat: number, lng: number): { x: number; y: number } {
   const x =
@@ -117,65 +117,21 @@ export function riverPath(points: [number, number][]): string {
     .join(" ");
 }
 
-// Simplified national outline, traced clockwise from the Sundarbans.
-// Stylized on purpose: recognizable at a glance, cheap to render.
-export const BD_OUTLINE: [number, number][] = [
-  [21.65, 89.2],
-  [22.1, 88.95],
-  [22.95, 88.85],
-  [23.3, 88.75],
-  [23.85, 88.55],
-  [24.3, 88.05],
-  [24.85, 88.15],
-  [25.2, 88.45],
-  [25.6, 88.3],
-  [26.0, 88.35],
-  [26.35, 88.35],
-  [26.63, 88.42],
-  [26.3, 88.9],
-  [25.85, 89.3],
-  [25.95, 89.85],
-  [25.5, 89.85],
-  [25.15, 90.3],
-  [25.15, 90.6],
-  [25.2, 91.3],
-  [25.15, 92.1],
-  [25.1, 92.3],
-  [24.85, 92.4],
-  [24.4, 92.2],
-  [24.15, 91.9],
-  [23.95, 91.35],
-  [23.7, 91.15],
-  [23.25, 91.15],
-  [22.95, 91.45],
-  [23.25, 91.6],
-  [23.65, 91.9],
-  [23.9, 92.35],
-  [23.2, 92.35],
-  [22.5, 92.65],
-  [21.95, 92.6],
-  [21.25, 92.2],
-  [20.85, 92.3],
-  [21.45, 92.05],
-  [21.8, 91.85],
-  [22.2, 91.8],
-  [22.55, 91.55],
-  [22.4, 90.85],
-  [22.05, 90.45],
-  [21.85, 90.1],
-  [22.1, 89.75],
-  [21.8, 89.55]
-];
+// Accurate national boundary, generated from OpenStreetMap data.
+import { BD_POLYGONS } from "../data/bdOutline";
 
 let cachedOutline: string | null = null;
 
 export function outlinePath(): string {
   if (!cachedOutline) {
-    cachedOutline =
-      BD_OUTLINE.map(([lat, lng], i) => {
-        const { x, y } = project(lat, lng);
-        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-      }).join(" ") + " Z";
+    cachedOutline = BD_POLYGONS.map((ring) =>
+      ring
+        .map(([lat, lng], i) => {
+          const { x, y } = project(lat, lng);
+          return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+        })
+        .join(" ") + " Z"
+    ).join(" ");
   }
   return cachedOutline;
 }

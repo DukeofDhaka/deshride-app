@@ -19,8 +19,8 @@ export function LocationPicker({
   onChange,
   allowMapPick = false,
   withNote = false,
-  notePlaceholder = "Exact meeting point, e.g. Kalabagan bus stand gate 2",
-  placeholder = "District or town"
+  notePlaceholder = "ঠিক কোথায় দেখা হবে? যেমন: কলাবাগান বাসস্ট্যান্ড, গেট ২",
+  placeholder = "জেলা বা এলাকা"
 }: LocationPickerProps) {
   const [query, setQuery] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
@@ -31,7 +31,7 @@ export function LocationPicker({
 
   function handlePick(lat: number, lng: number) {
     const { place, km } = findNearest(lat, lng);
-    const name = km <= 12 ? place.name : `Near ${place.name}`;
+    const name = km <= 12 ? place.name : `${place.name}-এর কাছে`;
     onChange({ name, district: place.name, lat, lng, note: value?.note });
     setQuery("");
     setMapOpen(false);
@@ -58,7 +58,7 @@ export function LocationPicker({
             className="field__map-toggle"
             onClick={() => setMapOpen((open) => !open)}
           >
-            {mapOpen ? "Close map" : "Pick on map"}
+            {mapOpen ? "ম্যাপ বন্ধ" : "ম্যাপে বাছুন"}
           </button>
         )}
       </div>
@@ -83,8 +83,8 @@ export function LocationPicker({
                 <strong>{place.name}</strong>
                 <span>
                   {place.kind === "area"
-                    ? `${place.district} · area`
-                    : `${place.division} division`}
+                    ? `${place.district} · এলাকা`
+                    : `${place.division} বিভাগ`}
                 </span>
               </button>
             </li>
@@ -96,7 +96,7 @@ export function LocationPicker({
         value.name === value.district &&
         areasOf(value.district).length > 0 && (
           <div className="area-chips">
-            <span className="area-chips__label">Narrow it down in {value.district}:</span>
+            <span className="area-chips__label">{value.district}-এর ভেতরে বেছে নিন:</span>
             <div className="rule-grid">
               {areasOf(value.district).map((area) => (
                 <button
@@ -122,7 +122,7 @@ export function LocationPicker({
 
       {mapOpen && (
         <div className="field__map">
-          <p className="field__hint">Tap anywhere in Bangladesh to drop the pin.</p>
+          <p className="field__hint">ম্যাপে যেকোনো জায়গায় ট্যাপ করে পিন বসান।</p>
           <BDMap from={value} onPick={handlePick} />
         </div>
       )}

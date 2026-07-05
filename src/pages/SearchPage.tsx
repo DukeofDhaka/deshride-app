@@ -24,7 +24,7 @@ export function SearchPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = results.find((r) => r.id === activeId) ?? results[0];
 
-  const title = [fromDistrict ?? "Anywhere", toDistrict ?? "anywhere"].join(" → ");
+  const title = [fromDistrict ?? "যেকোনো জায়গা", toDistrict ?? "যেকোনো জায়গা"].join(" → ");
 
   return (
     <section className="page page--search">
@@ -32,10 +32,10 @@ export function SearchPage() {
         <h1>{title}</h1>
         <p>
           {exact.length > 0
-            ? `${exact.length} ride${exact.length > 1 ? "s" : ""} ${date ? `on ${date}` : "upcoming"}`
+            ? `${exact.length}টি রাইড${date ? ` — ${date}` : ""}`
             : nearby.length > 0
-              ? `Nothing on ${date ?? "that date"} yet — here is the same route on other days.`
-              : "No rides on this route yet."}
+              ? `${date ?? "ঐ দিনে"} কিছু নেই — একই রুটে অন্য দিনের রাইডগুলো দেখুন।`
+              : "এই রুটে এখনো কোনো রাইড নেই।"}
         </p>
       </div>
 
@@ -47,13 +47,13 @@ export function SearchPage() {
 
           {results.length === 0 && (
             <div className="empty-state">
-              <h2>Be the first on this route.</h2>
+              <h2>এই রুটে প্রথম হোন।</h2>
               <p>
-                DeshRide is growing corridor by corridor. If you drive this route, post
-                your empty seats and travellers will find you.
+                এই রুটে গাড়ি চালান? খালি সিটগুলো পোস্ট করুন — যাত্রীরা আপনাকে খুঁজে
+                নেবে।
               </p>
               <Link className="primary-button" to="/post">
-                Post a ride
+                রাইড দিন
               </Link>
             </div>
           )}
