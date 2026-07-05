@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import type { LuggageSize, Spot } from "../types";
 import { BDMap } from "../components/BDMap";
 import { LocationPicker } from "../components/LocationPicker";
-import { estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
-import { createRide, getProfile, saveProfile } from "../lib/store";
+import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
+import { createRide, getProfile, saveProfile, saveRideDraft } from "../lib/store";
 
 const RULE_OPTIONS = ["No smoking", "AC on highway", "Music ok", "Max 3 in the back", "Ladies-priority front seat"];
 
@@ -71,7 +71,7 @@ export function PostRidePage() {
     }
 
     const departure = new Date(`${date}T${time}:00`).toISOString();
-    const ride = createRide({
+    const rideInput = {
       from,
       to,
       departure,
@@ -81,7 +81,16 @@ export function PostRidePage() {
       luggage,
       rules,
       note: note.trim() || undefined
-    });
+    };
+
+    // First-time drivers finish their driver profile before the ride goes live.
+    if (!profile.driver) {
+      saveRideDraft(rideInput);
+      navigate("/driver-onboarding");
+      return;
+    }
+
+    const ride = createRide(rideInput);
     navigate(`/ride/${ride.id}?posted=1`);
   }
 
@@ -168,8 +177,8 @@ export function PostRidePage() {
                 id="post-price"
                 className="field__input"
                 type="number"
-                min={50}
-                step={50}
+                min={1}
+                step={1}
                 value={effectivePrice}
                 onChange={(e) => {
                   setPriceTouched(true);
@@ -181,8 +190,9 @@ export function PostRidePage() {
 
           {fare && km && (
             <p className="field__hint">
-              ~{km} km · {estimateDuration(km)}. Suggested {formatBDT(fare.low)}–
-              {formatBDT(fare.high)} per seat — under the AC bus for door-to-door.
+              ~{km} km · {estimateDuration(km)}. AC bus runs ≈{formatBDT(busFareEstimate(km))} on
+              this route — price under that and your seats fill. Suggested{" "}
+              {formatBDT(fare.low)}–{formatBDT(fare.high)}, but any price is yours to set.
             </p>
           )}
 

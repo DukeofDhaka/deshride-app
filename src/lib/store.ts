@@ -7,7 +7,9 @@ import type { PaymentMethodId } from "../data/paymentMethods";
 const KEYS = {
   profile: "deshride.profile.v1",
   rides: "deshride.rides.v1",
-  bookings: "deshride.bookings.v1"
+  bookings: "deshride.bookings.v1",
+  draft: "deshride.ride-draft.v1",
+  searches: "deshride.searches.v1"
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -94,15 +96,15 @@ export interface NewRide {
 
 export function createRide(input: NewRide): Ride {
   const profile = getProfile();
-  const mine = myRides().length;
   const ride: Ride = {
     id: uid("ride"),
     driver: {
       id: profile.id,
       name: profile.name || "You",
-      rating: mine > 0 ? null : null,
-      trips: mine,
-      accent: "#2f6f64"
+      rating: null,
+      trips: myRides().length,
+      accent: "#2f6f64",
+      phone: profile.phone || undefined
     },
     status: "active",
     createdAt: new Date().toISOString(),
@@ -110,6 +112,36 @@ export function createRide(input: NewRide): Ride {
   };
   saveRides([...allRides(), ride]);
   return ride;
+}
+
+// A ride being posted pauses here while the driver completes onboarding.
+export function saveRideDraft(draft: NewRide) {
+  save(KEYS.draft, draft);
+}
+
+export function loadRideDraft(): NewRide | null {
+  return load<NewRide | null>(KEYS.draft, null);
+}
+
+export function clearRideDraft() {
+  localStorage.removeItem(KEYS.draft);
+}
+
+export interface RecentSearch {
+  from?: string;
+  to?: string;
+  date: string;
+}
+
+export function rememberSearch(entry: RecentSearch) {
+  const existing = load<RecentSearch[]>(KEYS.searches, []).filter(
+    (s) => !(s.from === entry.from && s.to === entry.to)
+  );
+  save(KEYS.searches, [entry, ...existing].slice(0, 5));
+}
+
+export function recentSearches(): RecentSearch[] {
+  return load<RecentSearch[]>(KEYS.searches, []);
 }
 
 export function cancelRide(id: string) {
@@ -137,18 +169,84 @@ export function myRides(): Ride[] {
     .sort((a, b) => a.departure.localeCompare(b.departure));
 }
 
-// The driver marks the trip done; escrow releases to them at that moment.
+// The driver marks the trip done. Fares enter a 24-hour "releasing" window:
+// the rider can confirm to release immediately, or it auto-releases.
 export function completeRide(id: string) {
+  const releaseAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
   saveRides(
     allRides().map((r) => (r.id === id ? { ...r, status: "completed" as const } : r))
   );
   saveBookings(
     allBookings().map((b) =>
       b.rideId === id && b.status === "accepted" && b.payStatus === "held"
+        ? { ...b, payStatus: "releasing" as const, releaseAt }
+        : b
+    )
+  );
+}
+
+// Rider taps "confirm ride" — releases their fare to the driver right away.
+export function confirmRelease(bookingId: string) {
+  saveBookings(
+    allBookings().map((b) =>
+      b.id === bookingId && b.payStatus === "releasing"
         ? { ...b, payStatus: "released" as const }
         : b
     )
   );
+}
+
+// Auto-release any fares whose 24-hour confirmation window has passed.
+export function sweepPayments() {
+  const now = Date.now();
+  const bookings = allBookings();
+  if (
+    !bookings.some(
+      (b) => b.payStatus === "releasing" && b.releaseAt && Date.parse(b.releaseAt) <= now
+    )
+  ) {
+    return;
+  }
+  saveBookings(
+    bookings.map((b) =>
+      b.payStatus === "releasing" && b.releaseAt && Date.parse(b.releaseAt) <= now
+        ? { ...b, payStatus: "released" as const }
+        : b
+    )
+  );
+}
+
+// Cancellation ladder: full refund more than 24h out, half inside 24h, and
+// after departure the held fare goes to the driver instead.
+export function refundPolicy(departure: string): { pct: number; label: string } {
+  const dep = Date.parse(departure);
+  const now = Date.now();
+  if (now < dep - 24 * 3600 * 1000) return { pct: 100, label: "Full refund" };
+  if (now < dep) return { pct: 50, label: "50% refund (within 24h of departure)" };
+  return { pct: 0, label: "No refund after departure — fare goes to the driver" };
+}
+
+export function cancelMyBooking(bookingId: string): string | null {
+  const bookings = allBookings();
+  const booking = bookings.find((b) => b.id === bookingId);
+  if (!booking) return "Request not found.";
+  const ride = getRide(booking.rideId);
+  saveBookings(
+    bookings.map((b) => {
+      if (b.id !== bookingId) return b;
+      if (b.payStatus !== "held" || !ride) {
+        return { ...b, status: "cancelled" as const };
+      }
+      const { pct } = refundPolicy(ride.departure);
+      return {
+        ...b,
+        status: "cancelled" as const,
+        refundPct: pct,
+        payStatus: pct > 0 ? ("refunded" as const) : ("released" as const)
+      };
+    })
+  );
+  return null;
 }
 
 // --- bookings ----------------------------------------------------------------
@@ -196,6 +294,7 @@ export function requestBooking(
     rideId,
     guestId: profile.id,
     guestName: profile.name || "Guest",
+    guestPhone: profile.phone || undefined,
     seats,
     payMethod,
     status: "pending",
@@ -264,7 +363,7 @@ export function ensureSeed() {
   const seedRides: Ride[] = [
     {
       id: "ride-seed-1",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111" },
       from: spot("Dhaka", "Dhaka", 23.75, 90.38, "Kalabagan bus stand, gate 2"),
       to: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle, Wells Park side"),
       departure: departureAt(1, 7, 30),
@@ -279,7 +378,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-2",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222" },
       from: spot("Dhaka", "Dhaka", 23.87, 90.4, "Uttara, Jasimuddin Road front gate"),
       to: spot("Sylhet", "Sylhet", 24.9, 91.87, "Amberkhana point"),
       departure: departureAt(1, 8, 0),
@@ -294,7 +393,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-3",
-      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95" },
+      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95", phone: "01913-000333" },
       from: spot("Dhaka", "Dhaka", 23.72, 90.38, "Jatrabari, Padma-bound counter side"),
       to: spot("Khulna", "Khulna", 22.82, 89.55, "Shibbari Mor"),
       departure: departureAt(2, 6, 45),
@@ -309,7 +408,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-4",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111" },
       from: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle"),
       to: spot("Cox's Bazar", "Cox's Bazar", 21.44, 91.97, "Kolatoli Mor"),
       departure: departureAt(2, 9, 0),
@@ -324,7 +423,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-5",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222" },
       from: spot("Dhaka", "Dhaka", 23.79, 90.36, "Gabtoli, city side"),
       to: spot("Rajshahi", "Rajshahi", 24.37, 88.6, "Shaheb Bazar Zero Point"),
       departure: departureAt(3, 7, 0),

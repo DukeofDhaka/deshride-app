@@ -66,8 +66,55 @@ export function suggestedFare(km: number): { low: number; high: number; mid: num
   return { low, high, mid };
 }
 
+// AC coach fares run roughly Tk 7–9/km on trunk routes; this is the anchor a
+// per-seat price should undercut.
+export function busFareEstimate(km: number): number {
+  return Math.max(400, Math.round((km * 8) / 50) * 50);
+}
+
 export function formatBDT(amount: number): string {
   return `৳${amount.toLocaleString("en-IN")}`;
+}
+
+// The big three rivers, simplified — they make the map read as Bangladesh.
+export const RIVERS: [number, number][][] = [
+  // Jamuna joining Padma, down to the Meghna estuary
+  [
+    [25.6, 89.65],
+    [25.0, 89.7],
+    [24.45, 89.7],
+    [24.0, 89.75],
+    [23.8, 89.65],
+    [23.55, 90.0],
+    [23.35, 90.35],
+    [23.1, 90.55],
+    [22.75, 90.7],
+    [22.3, 90.85]
+  ],
+  // Padma upstream from the western border
+  [
+    [24.4, 88.15],
+    [24.1, 88.7],
+    [23.9, 89.2],
+    [23.8, 89.65]
+  ],
+  // Upper Meghna from the Sylhet basin
+  [
+    [24.9, 91.4],
+    [24.5, 91.1],
+    [24.1, 91.0],
+    [23.6, 90.85],
+    [23.1, 90.55]
+  ]
+];
+
+export function riverPath(points: [number, number][]): string {
+  return points
+    .map(([lat, lng], i) => {
+      const { x, y } = project(lat, lng);
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
 }
 
 // Simplified national outline, traced clockwise from the Sundarbans.

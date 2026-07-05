@@ -201,6 +201,14 @@ export function RidePage() {
                 </span>
               </p>
               <p>{getPaymentMethod(myBooking.payMethod).confirmationNote}</p>
+              {myBooking.status === "accepted" && ride.driver.phone && (
+                <p>
+                  Reach {ride.driver.name}:{" "}
+                  <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
+                    {ride.driver.phone}
+                  </a>
+                </p>
+              )}
               <Link className="secondary-link secondary-link--button" to="/rides">
                 View in My rides
               </Link>

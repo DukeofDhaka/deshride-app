@@ -3,12 +3,15 @@ import { Link } from "react-router-dom";
 import { formatBDT } from "../lib/geo";
 import {
   acceptedBookings,
+  cancelMyBooking,
   cancelRide,
   completeRide,
+  confirmRelease,
   getRide,
   myBookings,
   myRides,
   pendingRequests,
+  refundPolicy,
   seatsLeft,
   updateBookingStatus
 } from "../lib/store";
@@ -99,12 +102,28 @@ export function MyRidesPage() {
                   <ul className="panel-list">
                     {confirmed.map((b) => (
                       <li key={b.id}>
-                        ✓ {b.guestName} — {b.seats} seat{b.seats > 1 ? "s" : ""} · paid by{" "}
-                        {b.payMethod} ·{" "}
+                        ✓ {b.guestName}
+                        {b.guestPhone && (
+                          <>
+                            {" "}
+                            (<a className="secondary-link" href={`tel:${b.guestPhone}`}>{b.guestPhone}</a>)
+                          </>
+                        )}{" "}
+                        — {b.seats} seat{b.seats > 1 ? "s" : ""} · paid by {b.payMethod} ·{" "}
                         <span
-                          className={`chip ${b.payStatus === "released" ? "chip--good" : "chip--wait"}`}
+                          className={`chip ${
+                            b.payStatus === "released"
+                              ? "chip--good"
+                              : b.payStatus === "releasing"
+                                ? "chip--wait"
+                                : "chip--wait"
+                          }`}
                         >
-                          {b.payStatus === "released" ? "Paid out to you" : "Held by DeshRide"}
+                          {b.payStatus === "released"
+                            ? "Paid out to you"
+                            : b.payStatus === "releasing"
+                              ? "Releasing — rider confirms or auto in 24h"
+                              : "Held by DeshRide"}
                         </span>
                       </li>
                     ))}
@@ -120,7 +139,7 @@ export function MyRidesPage() {
                       refresh();
                     }}
                   >
-                    Mark trip completed — release {formatBDT(heldTotal)}
+                    Mark trip completed — start releasing {formatBDT(heldTotal)}
                   </button>
                 )}
 
@@ -172,6 +191,7 @@ export function MyRidesPage() {
           {requested.map((booking) => {
             const ride = getRide(booking.rideId);
             if (!ride) return null;
+            const policy = refundPolicy(ride.departure);
             return (
               <div key={booking.id} className="manage-card">
                 <div className="manage-card__head">
@@ -183,9 +203,19 @@ export function MyRidesPage() {
                       {formatDeparture(ride.departure)} · {booking.seats} seat
                       {booking.seats > 1 ? "s" : ""} · {formatBDT(ride.pricePerSeat * booking.seats)}
                       {booking.payStatus === "held" && " · fare held by DeshRide until the trip ends"}
+                      {booking.payStatus === "releasing" && " · trip done — fare releasing to driver"}
                       {booking.payStatus === "released" && " · fare paid to driver"}
-                      {booking.payStatus === "refunded" && " · fare refunded to you"}
+                      {booking.payStatus === "refunded" &&
+                        ` · ${booking.refundPct === 50 ? "50% " : ""}refunded to you`}
                     </span>
+                    {booking.status === "accepted" && ride.driver.phone && (
+                      <span>
+                        Driver: {ride.driver.name} ·{" "}
+                        <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
+                          {ride.driver.phone}
+                        </a>
+                      </span>
+                    )}
                   </div>
                   <span
                     className={`chip ${
@@ -207,16 +237,31 @@ export function MyRidesPage() {
                   <Link className="secondary-link" to={`/ride/${ride.id}`}>
                     View ride
                   </Link>
-                  {(booking.status === "pending" || booking.status === "accepted") && (
+                  {booking.payStatus === "releasing" && (
+                    <button
+                      type="button"
+                      className="ghost-button ghost-button--good"
+                      onClick={() => {
+                        confirmRelease(booking.id);
+                        refresh();
+                      }}
+                    >
+                      Confirm ride went well — release now
+                    </button>
+                  )}
+                  {(booking.status === "pending" ||
+                    (booking.status === "accepted" && booking.payStatus === "held")) && (
                     <button
                       type="button"
                       className="ghost-button ghost-button--danger"
+                      title={booking.payStatus === "held" ? policy.label : undefined}
                       onClick={() => {
-                        updateBookingStatus(booking.id, "cancelled");
+                        cancelMyBooking(booking.id);
                         refresh();
                       }}
                     >
                       Cancel request
+                      {booking.payStatus === "held" ? ` (${policy.label.toLowerCase()})` : ""}
                     </button>
                   )}
                 </div>

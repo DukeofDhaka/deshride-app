@@ -5,6 +5,8 @@ export interface Place {
   division: string;
   lat: number;
   lng: number;
+  kind?: "district" | "area";
+  district?: string;
 }
 
 // All 64 districts of Bangladesh, coordinates at the district headquarters.
@@ -83,6 +85,45 @@ export const DISTRICTS: Place[] = [
   { name: "Netrokona", division: "Mymensingh", lat: 24.88, lng: 90.73 }
 ];
 
+// Neighbourhood-level pickup points inside the biggest cities, so drivers can
+// post from their locality and riders can meet nearby instead of "Dhaka".
+export const AREAS: Place[] = [
+  // Dhaka
+  { name: "Mohammadpur", district: "Dhaka", division: "Dhaka", lat: 23.7654, lng: 90.3563, kind: "area" },
+  { name: "Uttara", district: "Dhaka", division: "Dhaka", lat: 23.8759, lng: 90.3795, kind: "area" },
+  { name: "Gulshan", district: "Dhaka", division: "Dhaka", lat: 23.7925, lng: 90.4078, kind: "area" },
+  { name: "Banani", district: "Dhaka", division: "Dhaka", lat: 23.7937, lng: 90.4007, kind: "area" },
+  { name: "Mirpur", district: "Dhaka", division: "Dhaka", lat: 23.8223, lng: 90.3654, kind: "area" },
+  { name: "Dhanmondi", district: "Dhaka", division: "Dhaka", lat: 23.7461, lng: 90.3742, kind: "area" },
+  { name: "Bashundhara", district: "Dhaka", division: "Dhaka", lat: 23.8195, lng: 90.4232, kind: "area" },
+  { name: "Mohakhali", district: "Dhaka", division: "Dhaka", lat: 23.7778, lng: 90.4057, kind: "area" },
+  { name: "Farmgate", district: "Dhaka", division: "Dhaka", lat: 23.7576, lng: 90.3897, kind: "area" },
+  { name: "Motijheel", district: "Dhaka", division: "Dhaka", lat: 23.7331, lng: 90.4172, kind: "area" },
+  { name: "Badda", district: "Dhaka", division: "Dhaka", lat: 23.7807, lng: 90.4265, kind: "area" },
+  { name: "Khilgaon", district: "Dhaka", division: "Dhaka", lat: 23.7519, lng: 90.4254, kind: "area" },
+  { name: "Jatrabari", district: "Dhaka", division: "Dhaka", lat: 23.7104, lng: 90.4349, kind: "area" },
+  { name: "Gabtoli", district: "Dhaka", division: "Dhaka", lat: 23.7831, lng: 90.3455, kind: "area" },
+  { name: "Savar", district: "Dhaka", division: "Dhaka", lat: 23.8583, lng: 90.2667, kind: "area" },
+  // Chattogram
+  { name: "GEC Circle", district: "Chattogram", division: "Chattogram", lat: 22.3595, lng: 91.8213, kind: "area" },
+  { name: "Agrabad", district: "Chattogram", division: "Chattogram", lat: 22.3253, lng: 91.8131, kind: "area" },
+  { name: "Muradpur", district: "Chattogram", division: "Chattogram", lat: 22.3684, lng: 91.8397, kind: "area" },
+  { name: "Halishahar", district: "Chattogram", division: "Chattogram", lat: 22.3223, lng: 91.7719, kind: "area" },
+  { name: "Pahartali", district: "Chattogram", division: "Chattogram", lat: 22.3646, lng: 91.7802, kind: "area" },
+  // Sylhet
+  { name: "Amberkhana", district: "Sylhet", division: "Sylhet", lat: 24.9057, lng: 91.8672, kind: "area" },
+  { name: "Zindabazar", district: "Sylhet", division: "Sylhet", lat: 24.8951, lng: 91.8687, kind: "area" },
+  // Khulna
+  { name: "Sonadanga", district: "Khulna", division: "Khulna", lat: 22.8202, lng: 89.5403, kind: "area" },
+  { name: "Shibbari", district: "Khulna", division: "Khulna", lat: 22.8265, lng: 89.5532, kind: "area" },
+  // Rajshahi
+  { name: "Shaheb Bazar", district: "Rajshahi", division: "Rajshahi", lat: 24.3658, lng: 88.5983, kind: "area" }
+];
+
+export function areasOf(district: string): Place[] {
+  return AREAS.filter((a) => a.district === district);
+}
+
 // Division headquarters shown as reference dots on the map.
 export const MAJOR_CITIES = [
   "Dhaka",
@@ -95,20 +136,22 @@ export const MAJOR_CITIES = [
   "Mymensingh"
 ].map((name) => DISTRICTS.find((d) => d.name === name)!);
 
+const ALL_PLACES: Place[] = [...DISTRICTS.map((d) => ({ ...d, kind: "district" as const })), ...AREAS];
+
 export function searchPlaces(query: string, limit = 7): Place[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  const starts = DISTRICTS.filter((d) => d.name.toLowerCase().startsWith(q));
-  const contains = DISTRICTS.filter(
+  const starts = ALL_PLACES.filter((d) => d.name.toLowerCase().startsWith(q));
+  const contains = ALL_PLACES.filter(
     (d) => !d.name.toLowerCase().startsWith(q) && d.name.toLowerCase().includes(q)
   );
   return [...starts, ...contains].slice(0, limit);
 }
 
 export function findNearest(lat: number, lng: number): { place: Place; km: number } {
-  let best = DISTRICTS[0];
+  let best = ALL_PLACES[0];
   let bestKm = Infinity;
-  for (const d of DISTRICTS) {
+  for (const d of ALL_PLACES) {
     const km = haversineKm({ lat, lng }, d);
     if (km < bestKm) {
       bestKm = km;

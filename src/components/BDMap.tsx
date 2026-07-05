@@ -4,9 +4,11 @@ import { MAJOR_CITIES } from "../data/gazetteer";
 import {
   MAP_H,
   MAP_W,
+  RIVERS,
   haversineKm,
   outlinePath,
   project,
+  riverPath,
   roadKm,
   unproject
 } from "../lib/geo";
@@ -59,7 +61,31 @@ export function BDMap({ from, to, pins = [], onPick, showCities = true, classNam
       aria-label={onPick ? "Map of Bangladesh. Tap to choose a location." : "Map of Bangladesh"}
       onClick={handleClick}
     >
-      <path className="bdmap-land" d={outlinePath()} />
+      <defs>
+        <linearGradient id="bdmap-land-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#e3efdf" />
+          <stop offset="60%" stopColor="#d9eadb" />
+          <stop offset="100%" stopColor="#cfe4d6" />
+        </linearGradient>
+        <clipPath id="bdmap-clip">
+          <path d={outlinePath()} />
+        </clipPath>
+      </defs>
+
+      <path className="bdmap-land" fill="url(#bdmap-land-fill)" d={outlinePath()} />
+
+      <g clipPath="url(#bdmap-clip)">
+        {RIVERS.map((river, index) => (
+          <path
+            key={index}
+            className="bdmap-river"
+            d={riverPath(river)}
+            strokeWidth={index === 0 ? 9 : 6}
+          />
+        ))}
+      </g>
+
+      <path className="bdmap-border" d={outlinePath()} />
 
       {showCities &&
         MAJOR_CITIES.map((city) => {

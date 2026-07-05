@@ -14,6 +14,7 @@ export interface DriverInfo {
   rating: number | null;
   trips: number;
   accent: string;
+  phone?: string;
 }
 
 export type LuggageSize = "small" | "medium" | "large";
@@ -38,26 +39,43 @@ export interface Ride {
 
 export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled";
 
-// Escrow lifecycle: the fare is collected when the driver accepts ("held"),
-// and paid out to the driver only after the trip completes ("released").
-export type PayStatus = "unpaid" | "held" | "released" | "refunded";
+// Escrow lifecycle: the fare is collected when the driver accepts ("held").
+// When the driver marks the trip done it enters "releasing" — the rider can
+// confirm immediately or it auto-releases after 24 hours — then "released".
+export type PayStatus = "unpaid" | "held" | "releasing" | "released" | "refunded";
 
 export interface Booking {
   id: string;
   rideId: string;
   guestId: string;
   guestName: string;
+  guestPhone?: string;
   seats: number;
   payMethod: PaymentMethodId;
   status: BookingStatus;
   payStatus: PayStatus;
+  releaseAt?: string;
+  refundPct?: number;
   createdAt: string;
+}
+
+// Collected the first time someone publishes a ride: the identity and vehicle
+// details BRTA enlistment and rider trust both depend on.
+export interface DriverDetails {
+  ownerNid: string;
+  ownerIsDriver: boolean;
+  driverNid?: string;
+  plate: string;
+  carColor: string;
+  carPhoto?: string;
+  completedAt: string;
 }
 
 export interface Profile {
   id: string;
   name: string;
   phone: string;
+  driver?: DriverDetails;
   verified: {
     phone: boolean;
     nid: boolean;

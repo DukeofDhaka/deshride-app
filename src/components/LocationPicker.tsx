@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Spot } from "../types";
-import { findNearest, searchPlaces } from "../data/gazetteer";
+import { areasOf, findNearest, searchPlaces } from "../data/gazetteer";
 import { BDMap } from "./BDMap";
 
 interface LocationPickerProps {
@@ -66,13 +66,13 @@ export function LocationPicker({
       {showList && results.length > 0 && (
         <ul className="pick-list">
           {results.map((place) => (
-            <li key={place.name}>
+            <li key={`${place.name}-${place.district ?? ""}`}>
               <button
                 type="button"
                 onMouseDown={() => {
                   onChange({
                     name: place.name,
-                    district: place.name,
+                    district: place.district ?? place.name,
                     lat: place.lat,
                     lng: place.lng,
                     note: value ? (value as Spot).note : undefined
@@ -81,12 +81,44 @@ export function LocationPicker({
                 }}
               >
                 <strong>{place.name}</strong>
-                <span>{place.division} division</span>
+                <span>
+                  {place.kind === "area"
+                    ? `${place.district} · area`
+                    : `${place.division} division`}
+                </span>
               </button>
             </li>
           ))}
         </ul>
       )}
+
+      {value &&
+        value.name === value.district &&
+        areasOf(value.district).length > 0 && (
+          <div className="area-chips">
+            <span className="area-chips__label">Narrow it down in {value.district}:</span>
+            <div className="rule-grid">
+              {areasOf(value.district).map((area) => (
+                <button
+                  key={area.name}
+                  type="button"
+                  className="pill pill--toggle"
+                  onClick={() =>
+                    onChange({
+                      name: area.name,
+                      district: area.district!,
+                      lat: area.lat,
+                      lng: area.lng,
+                      note: value.note
+                    })
+                  }
+                >
+                  {area.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
       {mapOpen && (
         <div className="field__map">

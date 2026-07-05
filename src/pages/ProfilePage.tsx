@@ -66,12 +66,18 @@ export function ProfilePage() {
                 signup with an SMS code.
               </li>
               <li>
-                <span className="chip chip--wait">Next</span> National ID — checked
-                against the government's Porichoy service, with face match.
+                <span className={`chip ${profile.driver ? "chip--good" : "chip--wait"}`}>
+                  {profile.driver ? "Done" : "Next"}
+                </span>{" "}
+                National ID — checked against the government's Porichoy service, with
+                face match.
               </li>
               <li>
-                <span className="chip chip--wait">Drivers</span> Driving licence and BRTA
-                vehicle enlistment — required before your first posted ride goes live.
+                <span className={`chip ${profile.driver ? "chip--good" : "chip--wait"}`}>
+                  {profile.driver ? "Done" : "Drivers"}
+                </span>{" "}
+                Driver profile — NID, licence plate and car photo, collected the first
+                time you post a ride.
               </li>
             </ul>
             <p className="detail-note">
@@ -79,6 +85,25 @@ export function ProfilePage() {
               the car knows exactly who they're travelling with.
             </p>
           </div>
+
+          {profile.driver && (
+            <div className="detail-panel">
+              <h2>Your car</h2>
+              <ul className="panel-list">
+                <li>Plate: {profile.driver.plate}</li>
+                <li>Color: {profile.driver.carColor}</li>
+                <li>
+                  Owner NID: ···{profile.driver.ownerNid.replace(/\D/g, "").slice(-4)}
+                  {profile.driver.ownerIsDriver
+                    ? " (owner drives)"
+                    : ` · Driver NID: ···${(profile.driver.driverNid ?? "").replace(/\D/g, "").slice(-4)}`}
+                </li>
+              </ul>
+              {profile.driver.carPhoto && (
+                <img className="car-photo-preview" src={profile.driver.carPhoto} alt="Your car" />
+              )}
+            </div>
+          )}
         </div>
 
         <aside className="detail-aside">

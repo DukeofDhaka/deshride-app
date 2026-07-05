@@ -901,10 +901,22 @@ main {
 }
 
 .bdmap-land {
-  fill: #dcebdd;
-  stroke: rgba(23, 63, 57, 0.35);
-  stroke-width: 1.6;
+  stroke: none;
+}
+
+.bdmap-border {
+  fill: none;
+  stroke: rgba(23, 63, 57, 0.4);
+  stroke-width: 1.8;
   stroke-linejoin: round;
+}
+
+.bdmap-river {
+  fill: none;
+  stroke: #b7d5e6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
 }
 
 .bdmap-city {
@@ -1433,4 +1445,44 @@ main {
     align-items: center;
     justify-content: space-between;
   }
+}
+
+/* --- v2.1: areas, recent searches, driver onboarding ------------- */
+
+.area-chips,
+.recent-searches {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.area-chips__label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--coral);
+}
+
+.car-photo-preview {
+  margin-top: 8px;
+  width: 100%;
+  max-width: 360px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  display: block;
 }

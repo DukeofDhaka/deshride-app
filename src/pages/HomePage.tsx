@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { BDMap } from "../components/BDMap";
 import { LocationPicker } from "../components/LocationPicker";
-import { listUpcomingRides } from "../lib/store";
+import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
 
 function tomorrow(): string {
   const d = new Date();
@@ -18,14 +18,26 @@ export function HomePage() {
   const [date, setDate] = useState(tomorrow());
   const [seats, setSeats] = useState(1);
 
+  const dateRef = useRef<HTMLInputElement>(null);
   const upcoming = useMemo(() => listUpcomingRides().slice(0, 8), []);
+  const previous = useMemo(() => recentSearches(), []);
+
+  function openCalendar() {
+    const input = dateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    input?.showPicker?.();
+  }
+
+  function runSearch(fromDistrict?: string, toDistrict?: string, when?: string) {
+    const params: Record<string, string> = { date: when ?? date, seats: String(seats) };
+    if (fromDistrict) params.from = fromDistrict;
+    if (toDistrict) params.to = toDistrict;
+    rememberSearch({ from: fromDistrict, to: toDistrict, date: params.date });
+    navigate({ pathname: "/results", search: createSearchParams(params).toString() });
+  }
 
   function handleSearch(event: React.FormEvent) {
     event.preventDefault();
-    const params: Record<string, string> = { date, seats: String(seats) };
-    if (from) params.from = from.district;
-    if (to) params.to = to.district;
-    navigate({ pathname: "/results", search: createSearchParams(params).toString() });
+    runSearch(from?.district, to?.district);
   }
 
   return (
@@ -45,14 +57,17 @@ export function HomePage() {
             <div className="search-card__row">
               <div className="field">
                 <label className="field__label" htmlFor="search-date">
-                  Date
+                  Departing
                 </label>
                 <input
                   id="search-date"
+                  ref={dateRef}
                   className="field__input"
                   type="date"
                   value={date}
                   min={new Date().toISOString().slice(0, 10)}
+                  onClick={openCalendar}
+                  onFocus={openCalendar}
                   onChange={(e) => setDate(e.target.value)}
                 />
               </div>
@@ -78,6 +93,24 @@ export function HomePage() {
               Search rides
             </button>
           </form>
+
+          {previous.length > 0 && (
+            <div className="recent-searches">
+              <span className="area-chips__label">Recent searches</span>
+              <div className="rule-grid">
+                {previous.map((s, i) => (
+                  <button
+                    key={`${s.from}-${s.to}-${i}`}
+                    type="button"
+                    className="pill pill--toggle"
+                    onClick={() => runSearch(s.from, s.to, s.date)}
+                  >
+                    {(s.from ?? "Anywhere") + " → " + (s.to ?? "anywhere")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="hero__post-cta">
             Driving somewhere with empty seats?{" "}

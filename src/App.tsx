@@ -7,7 +7,8 @@ import { RidePage } from "./pages/RidePage";
 import { PostRidePage } from "./pages/PostRidePage";
 import { MyRidesPage } from "./pages/MyRidesPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { ensureSeed } from "./lib/store";
+import { DriverOnboardingPage } from "./pages/DriverOnboardingPage";
+import { ensureSeed, sweepPayments } from "./lib/store";
 
 ensureSeed();
 
@@ -16,6 +17,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    sweepPayments();
   }, [location.pathname]);
 
   return (
@@ -27,6 +29,7 @@ export default function App() {
           <Route path="/results" element={<SearchPage />} />
           <Route path="/ride/:rideId" element={<RidePage />} />
           <Route path="/post" element={<PostRidePage />} />
+          <Route path="/driver-onboarding" element={<DriverOnboardingPage />} />
           <Route path="/rides" element={<MyRidesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
