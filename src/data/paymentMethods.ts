@@ -13,23 +13,23 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: "bkash",
     label: "bKash",
-    hint: "Pay from your bKash wallet",
+    hint: "বিকাশ থেকে পেমেন্ট",
     confirmationNote:
-      "When the driver accepts, you approve a bKash payment. DeshRide holds it and pays the driver after the trip completes."
+      "ড্রাইভার গ্রহণ করলে বিকাশ পেমেন্ট অনুমোদন করবেন। টাকা দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।"
   },
   {
     id: "nagad",
     label: "Nagad",
-    hint: "Pay from your Nagad wallet",
+    hint: "নগদ থেকে পেমেন্ট",
     confirmationNote:
-      "When the driver accepts, you approve a Nagad payment. DeshRide holds it and pays the driver after the trip completes."
+      "ড্রাইভার গ্রহণ করলে নগদ পেমেন্ট অনুমোদন করবেন। টাকা দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।"
   },
   {
     id: "card",
-    label: "Card",
-    hint: "Visa or Mastercard",
+    label: "কার্ড",
+    hint: "ভিসা বা মাস্টারকার্ড",
     confirmationNote:
-      "When the driver accepts, your card is charged. DeshRide holds the fare and pays the driver after the trip completes."
+      "ড্রাইভার গ্রহণ করলে কার্ডে চার্জ হবে। ভাড়া দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।"
   }
 ];
 

@@ -1,10 +1,10 @@
 import { Link, NavLink } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Find a ride", end: true },
-  { to: "/post", label: "Post a ride", end: false },
-  { to: "/rides", label: "My rides", end: false },
-  { to: "/profile", label: "Profile", end: false }
+  { to: "/", label: "রাইড খুঁজুন", end: true },
+  { to: "/post", label: "রাইড দিন", end: false },
+  { to: "/rides", label: "আমার রাইড", end: false },
+  { to: "/profile", label: "প্রোফাইল", end: false }
 ];
 
 export function Header() {

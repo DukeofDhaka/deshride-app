@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { BDMap } from "../components/BDMap";
 import { LocationPicker } from "../components/LocationPicker";
 import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
+import { findNearest } from "../data/gazetteer";
+import { BD_BOUNDS } from "../lib/geo";
 
 function tomorrow(): string {
   const d = new Date();
@@ -20,11 +22,43 @@ export function HomePage() {
 
   const dateRef = useRef<HTMLInputElement>(null);
   const upcoming = useMemo(() => listUpcomingRides().slice(0, 8), []);
+
+  // Ask for location up front and start the search from the nearest area.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        if (
+          lat < BD_BOUNDS.minLat || lat > BD_BOUNDS.maxLat ||
+          lng < BD_BOUNDS.minLng || lng > BD_BOUNDS.maxLng
+        ) {
+          return;
+        }
+        setFrom((current) => {
+          if (current) return current;
+          const { place } = findNearest(lat, lng);
+          return {
+            name: place.name,
+            district: place.district ?? place.name,
+            lat: place.lat,
+            lng: place.lng
+          };
+        });
+      },
+      () => undefined,
+      { maximumAge: 600000, timeout: 8000 }
+    );
+  }, []);
   const previous = useMemo(() => recentSearches(), []);
 
   function openCalendar() {
     const input = dateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
-    input?.showPicker?.();
+    try {
+      input?.showPicker?.();
+    } catch {
+      // Sandboxed iframes disallow showPicker; the native input still opens on tap.
+    }
   }
 
   function runSearch(fromDistrict?: string, toDistrict?: string, when?: string) {
@@ -44,20 +78,20 @@ export function HomePage() {
     <section className="page">
       <div className="hero hero--split">
         <div className="hero__copy">
-          <span className="hero__label">Intercity carpooling · সারা বাংলাদেশ</span>
-          <h1>Every empty seat between any two places in Bangladesh.</h1>
+          <span className="hero__label">ইন্টারসিটি কারপুলিং · সমগ্র বাংলাদেশ</span>
+          <h1>আর নয় খালি সিট।</h1>
           <p className="hero__lead">
-            Drivers post the trip they are already making. Travellers book the spare
-            seats for less than a full car, with pickup points that beat any bus counter.
+            ড্রাইভার যাচ্ছেনই — খালি সিটগুলো পাচ্ছেন আপনি। বাসের ভাড়ায়, দরজা থেকে
+            দরজায়। <span className="hero__lead-en">Share the ride, share the cost.</span>
           </p>
 
           <form className="search-card" onSubmit={handleSearch}>
-            <LocationPicker label="Leaving from" value={from} onChange={setFrom} />
-            <LocationPicker label="Going to" value={to} onChange={setTo} />
+            <LocationPicker label="কোথা থেকে" value={from} onChange={setFrom} />
+            <LocationPicker label="কোথায় যাবেন" value={to} onChange={setTo} />
             <div className="search-card__row">
               <div className="field">
                 <label className="field__label" htmlFor="search-date">
-                  Departing
+                  যাত্রার তারিখ
                 </label>
                 <input
                   id="search-date"
@@ -73,7 +107,7 @@ export function HomePage() {
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="search-seats">
-                  Seats
+                  সিট
                 </label>
                 <select
                   id="search-seats"
@@ -90,13 +124,13 @@ export function HomePage() {
               </div>
             </div>
             <button className="primary-button primary-button--full" type="submit">
-              Search rides
+              রাইড খুঁজুন
             </button>
           </form>
 
           {previous.length > 0 && (
             <div className="recent-searches">
-              <span className="area-chips__label">Recent searches</span>
+              <span className="area-chips__label">আগের খোঁজ</span>
               <div className="rule-grid">
                 {previous.map((s, i) => (
                   <button
@@ -105,7 +139,7 @@ export function HomePage() {
                     className="pill pill--toggle"
                     onClick={() => runSearch(s.from, s.to, s.date)}
                   >
-                    {(s.from ?? "Anywhere") + " → " + (s.to ?? "anywhere")}
+                    {(s.from ?? "যেকোনো জায়গা") + " → " + (s.to ?? "যেকোনো জায়গা")}
                   </button>
                 ))}
               </div>
@@ -113,44 +147,19 @@ export function HomePage() {
           )}
 
           <p className="hero__post-cta">
-            Driving somewhere with empty seats?{" "}
+            গাড়িতে খালি সিট আছে?{" "}
             <Link className="secondary-link" to="/post">
-              Post your ride →
+              রাইড পোস্ট করুন →
             </Link>
           </p>
         </div>
 
         <div className="hero__map">
           <BDMap from={from} to={to} pins={upcoming.flatMap((r) => [r.from, r.to])} />
-          <p className="map-caption">
-            Live pins are pickup and drop-off points from upcoming rides.
-          </p>
+          <p className="map-caption">আসন্ন রাইডগুলোর পিকআপ ও ড্রপ-অফ পয়েন্ট।</p>
         </div>
       </div>
 
-      <div className="info-stack info-stack--row">
-        <div className="info-tile">
-          <strong>1 · Drivers post a trip</strong>
-          <p>
-            Any pickup and drop-off in the country — a district town, a bus stand, or a
-            pin dropped straight on the map.
-          </p>
-        </div>
-        <div className="info-tile">
-          <strong>2 · Travellers request seats</strong>
-          <p>
-            Pick your seats, choose bKash, Nagad or cash, and send the request. The
-            driver confirms who rides.
-          </p>
-        </div>
-        <div className="info-tile">
-          <strong>3 · Meet and go</strong>
-          <p>
-            Verified profiles, exact meeting points and in-app trip details — the trust
-            the Facebook khep groups never had.
-          </p>
-        </div>
-      </div>
     </section>
   );
 }

@@ -46,14 +46,14 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
               .slice(0, 2)}
           </span>
           {ride.driver.name}
-          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : " · New driver"}
+          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : " · নতুন ড্রাইভার"}
         </span>
       </div>
       <div className="ride-row__price">
         <strong>{formatBDT(ride.pricePerSeat)}</strong>
-        <span>per seat</span>
+        <span>প্রতি সিট</span>
         <span className={`chip ${left === 0 ? "chip--muted" : "chip--good"}`}>
-          {left === 0 ? "Full" : `${left} seat${left > 1 ? "s" : ""} left`}
+          {left === 0 ? "ফুল" : `${left}টি সিট বাকি`}
         </span>
       </div>
     </Link>

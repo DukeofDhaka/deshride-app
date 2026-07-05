@@ -20,29 +20,29 @@ export function ProfilePage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>Profile</h1>
-        <p>One profile for both sides of the trip — drive some days, ride on others.</p>
+        <h1>প্রোফাইল</h1>
+        <p>একটাই প্রোফাইল — কোনোদিন চালাবেন, কোনোদিন যাবেন।</p>
       </div>
 
       <div className="detail-grid">
         <div className="detail-main">
           <form className="detail-panel" onSubmit={handleSave}>
-            <h2>Your details</h2>
+            <h2>আপনার তথ্য</h2>
             <div className="field">
               <label className="field__label" htmlFor="profile-name">
-                Name
+                নাম
               </label>
               <input
                 id="profile-name"
                 className="field__input"
                 value={name}
-                placeholder="Shown to drivers and travellers"
+                placeholder="ড্রাইভার ও যাত্রীরা দেখবেন"
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="field">
               <label className="field__label" htmlFor="profile-phone">
-                Phone
+                ফোন
               </label>
               <input
                 id="profile-phone"
@@ -54,12 +54,12 @@ export function ProfilePage() {
               />
             </div>
             <button className="primary-button" type="submit">
-              {saved ? "Saved ✓" : "Save"}
+              {saved ? "সেভ হয়েছে ✓" : "সেভ করুন"}
             </button>
           </form>
 
           <div className="detail-panel">
-            <h2>Verification</h2>
+            <h2>ভেরিফিকেশন</h2>
             <ul className="panel-list">
               <li>
                 <span className="chip chip--good">Done</span> Phone number — verified at
@@ -88,10 +88,10 @@ export function ProfilePage() {
 
           {profile.driver && (
             <div className="detail-panel">
-              <h2>Your car</h2>
+              <h2>আপনার গাড়ি</h2>
               <ul className="panel-list">
-                <li>Plate: {profile.driver.plate}</li>
-                <li>Color: {profile.driver.carColor}</li>
+                <li>প্লেট: {profile.driver.plate}</li>
+                <li>রং: {profile.driver.carColor}</li>
                 <li>
                   Owner NID: ···{profile.driver.ownerNid.replace(/\D/g, "").slice(-4)}
                   {profile.driver.ownerIsDriver
@@ -116,14 +116,14 @@ export function ProfilePage() {
                 .slice(0, 2)
                 .toUpperCase()}
             </div>
-            <h2>{name || "Set your name"}</h2>
+            <h2>{name || "নাম দিন"}</h2>
             <p>
               {posted} ride{posted === 1 ? "" : "s"} posted · {requested} trip
               {requested === 1 ? "" : "s"} requested
             </p>
           </div>
           <div className="detail-panel">
-            <h2>Your data</h2>
+            <h2>আপনার ডেটা</h2>
             <p className="detail-note">
               This prototype keeps everything on this device only. When DeshRide's
               backend launches, your profile syncs with consent-first handling under

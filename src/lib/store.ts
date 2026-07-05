@@ -221,9 +221,9 @@ export function sweepPayments() {
 export function refundPolicy(departure: string): { pct: number; label: string } {
   const dep = Date.parse(departure);
   const now = Date.now();
-  if (now < dep - 24 * 3600 * 1000) return { pct: 100, label: "Full refund" };
-  if (now < dep) return { pct: 50, label: "50% refund (within 24h of departure)" };
-  return { pct: 0, label: "No refund after departure — fare goes to the driver" };
+  if (now < dep - 24 * 3600 * 1000) return { pct: 100, label: "পুরো টাকা ফেরত" };
+  if (now < dep) return { pct: 50, label: "৫০% ফেরত — যাত্রার ২৪ ঘণ্টার মধ্যে" };
+  return { pct: 0, label: "যাত্রা শুরুর পর ফেরত নেই — ভাড়া ড্রাইভার পাবেন" };
 }
 
 export function cancelMyBooking(bookingId: string): string | null {
