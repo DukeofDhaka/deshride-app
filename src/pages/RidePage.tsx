@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Link, createSearchParams, useParams, useSearchParams } from "react-router-dom";
 import { RouteMap } from "../components/RouteMap";
+import { PAYMENT_METHODS, type PaymentMethodId } from "../data/paymentMethods";
 import { formatMoney, getCorridor, getDriver, getRide } from "../data/deshrideData";
 
 export function RidePage() {
   const { rideId } = useParams();
   const [searchParams] = useSearchParams();
+  const [payMethod, setPayMethod] = useState<PaymentMethodId>("bkash");
   const ride = rideId ? getRide(rideId) : undefined;
 
   if (!ride) {
@@ -135,13 +138,29 @@ export function RidePage() {
               <br />
               Vehicle: {ride.vehicle}
             </p>
+            <div className="pay-options" role="radiogroup" aria-label="Payment method">
+              {PAYMENT_METHODS.map((method) => (
+                <button
+                  key={method.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={payMethod === method.id}
+                  className={`pay-option${payMethod === method.id ? " pay-option--active" : ""}`}
+                  onClick={() => setPayMethod(method.id)}
+                >
+                  <strong>{method.label}</strong>
+                  <span>{method.hint}</span>
+                </button>
+              ))}
+            </div>
             <Link
               className="primary-button primary-button--full"
               to={{
                 pathname: `/book/${ride.id}`,
                 search: createSearchParams({
                   date,
-                  seats
+                  seats,
+                  pay: payMethod
                 }).toString()
               }}
             >

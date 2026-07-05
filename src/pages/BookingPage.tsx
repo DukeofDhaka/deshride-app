@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, createSearchParams, useParams, useSearchParams } from "react-router-dom";
 import { RouteMap } from "../components/RouteMap";
+import { getPaymentMethod } from "../data/paymentMethods";
 import { formatMoney, getCorridor, getRide } from "../data/deshrideData";
 
 export function BookingPage() {
@@ -37,6 +38,7 @@ export function BookingPage() {
   const corridor = getCorridor(ride.corridorId);
   const date = searchParams.get("date") || ride.date;
   const seats = searchParams.get("seats") || "1";
+  const payment = getPaymentMethod(searchParams.get("pay"));
 
   return (
     <section className="page">
@@ -68,6 +70,15 @@ export function BookingPage() {
               <span>Total</span>
               <strong>{formatMoney(ride.price * Number(seats))}</strong>
             </div>
+            <div className="confirmation-card">
+              <span>Payment</span>
+              <strong>{payment.label}</strong>
+            </div>
+          </div>
+
+          <div className="detail-panel">
+            <h2>Payment</h2>
+            <p className="detail-note">{payment.confirmationNote}</p>
           </div>
 
           <div className="detail-panel">

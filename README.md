@@ -20,6 +20,26 @@ npm run build
 npm run preview
 ```
 
+## Android app (Capacitor)
+
+The same codebase ships as an Android app via Capacitor (`android/` project,
+app id `com.deshride.app`). To build the APK on a machine with Android Studio:
+
+```bash
+npm install
+npm run build
+npx cap sync android
+npx cap open android   # then Run ▶ or Build > Build APK
+```
+
+## Feasibility research
+
+Bangladesh launch research lives in `docs/feasibility/`:
+
+1. `01-regulatory-landscape.md` — BRTA, company setup, VAT, PDPO 2025
+2. `02-market-competition-unit-economics.md` — pricing, driver math, competitors
+3. `03-android-launch-and-payments.md` — Play Store, SMS/NID, bKash & Nagad payments
+
 ## Deployment
 
 - The repo includes a GitHub Pages workflow in `.github/workflows/deploy-pages.yml`.
