@@ -1,11 +1,13 @@
 import { Link, NavLink } from "react-router-dom";
 
-interface HeaderProps {
-  onOpenPostTrip: () => void;
-  onOpenHowItWorks: () => void;
-}
+const NAV_ITEMS = [
+  { to: "/", label: "Find a ride", end: true },
+  { to: "/post", label: "Post a ride", end: false },
+  { to: "/rides", label: "My rides", end: false },
+  { to: "/profile", label: "Profile", end: false }
+];
 
-export function Header({ onOpenPostTrip, onOpenHowItWorks }: HeaderProps) {
+export function Header() {
   return (
     <header className="site-header">
       <Link className="brand-lockup" to="/">
@@ -13,16 +15,24 @@ export function Header({ onOpenPostTrip, onOpenHowItWorks }: HeaderProps) {
       </Link>
 
       <nav className="site-nav" aria-label="Primary">
-        <NavLink to="/" className="nav-link">
-          Find a ride
-        </NavLink>
-        <button className="nav-button" type="button" onClick={onOpenPostTrip}>
-          Post a trip
-        </button>
-        <button className="nav-button" type="button" onClick={onOpenHowItWorks}>
-          How it works
-        </button>
+        {NAV_ITEMS.map((item) => (
+          <NavLink key={item.to} to={item.to} end={item.end} className="nav-link">
+            {item.label}
+          </NavLink>
+        ))}
       </nav>
     </header>
+  );
+}
+
+export function BottomNav() {
+  return (
+    <nav className="bottom-nav" aria-label="Primary mobile">
+      {NAV_ITEMS.map((item) => (
+        <NavLink key={item.to} to={item.to} end={item.end} className="bottom-nav__link">
+          {item.label}
+        </NavLink>
+      ))}
+    </nav>
   );
 }

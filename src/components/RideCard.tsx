@@ -1,78 +1,60 @@
-import { Link, createSearchParams } from "react-router-dom";
-import { formatMoney, getCorridor, getDriver } from "../data/deshrideData";
+import { Link } from "react-router-dom";
 import type { Ride } from "../types";
+import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
+import { seatsLeft } from "../lib/store";
 
-interface RideCardProps {
-  ride: Ride;
-  queryDate: string;
-  querySeats: number;
+function timeOf(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
-export function RideCard({ ride, queryDate, querySeats }: RideCardProps) {
-  const corridor = getCorridor(ride.corridorId);
-  const driver = getDriver(ride.driverId);
-  const rideSearch = createSearchParams({
-    date: queryDate,
-    seats: String(querySeats)
-  }).toString();
+function dateOf(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short"
+  });
+}
 
+export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }) {
+  const km = roadKm(ride.from, ride.to);
+  const left = seatsLeft(ride);
   return (
     <Link
-      className="ride-card ride-card--interactive"
-      to={{
-        pathname: `/ride/${ride.id}`,
-        search: rideSearch
-      }}
-      aria-label={`Open details for ${driver.name}'s ${corridor.pickupLabel} to ${corridor.dropoffLabel} ride`}
+      className="ride-row"
+      to={`/ride/${ride.id}`}
+      onMouseEnter={onHover}
+      onFocus={onHover}
     >
-      <div className="ride-card__top">
-        <div className="ride-card__route">
-          <p className="ride-card__time">
-            {ride.departureTime} <span>→</span> {ride.arrivalTime}
-          </p>
-          <h3>
-            {corridor.pickupLabel} to {corridor.dropoffLabel}
-          </h3>
-          <p className="ride-card__subtle">{corridor.duration} · {ride.comfort}</p>
-        </div>
-
-        <div className="ride-card__price">
-          <strong>{formatMoney(ride.price)}</strong>
-          <span>{ride.seatsLeft} seats left</span>
-        </div>
+      <div className="ride-row__times">
+        <strong>{timeOf(ride.departure)}</strong>
+        <span>{dateOf(ride.departure)}</span>
+        <span className="ride-row__duration">{estimateDuration(km)}</span>
       </div>
-
-      <div className="ride-card__driver">
-        <div className="avatar" style={{ backgroundColor: driver.accent }}>
-          {driver.name
-            .split(" ")
-            .map((part) => part[0])
-            .join("")
-            .slice(0, 2)}
-        </div>
-
-        <div>
-          <p className="ride-card__driver-name">{driver.name}</p>
-          <p className="ride-card__subtle">
-            {driver.rating.toFixed(1)} ★ · {driver.verifiedTrips} verified trips · {driver.responseTime}
-          </p>
-        </div>
-      </div>
-
-      <div className="ride-card__badges">
-        {driver.badges.slice(0, 3).map((badge) => (
-          <span key={badge} className="pill">
-            {badge}
+      <div className="ride-row__route">
+        <strong>
+          {ride.from.name} → {ride.to.name}
+        </strong>
+        <span>
+          {ride.from.note || ride.from.district} · {ride.to.note || ride.to.district}
+        </span>
+        <span className="ride-row__driver">
+          <span className="avatar avatar--dot" style={{ backgroundColor: ride.driver.accent }}>
+            {ride.driver.name
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)}
           </span>
-        ))}
+          {ride.driver.name}
+          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : " · New driver"}
+        </span>
       </div>
-
-      <div className="ride-card__footer">
-        <p>{ride.bookingNote}</p>
-        <div className="ride-card__hint" aria-hidden="true">
-          <span>Select this ride</span>
-          <span className="ride-card__chevron">→</span>
-        </div>
+      <div className="ride-row__price">
+        <strong>{formatBDT(ride.pricePerSeat)}</strong>
+        <span>per seat</span>
+        <span className={`chip ${left === 0 ? "chip--muted" : "chip--good"}`}>
+          {left === 0 ? "Full" : `${left} seat${left > 1 ? "s" : ""} left`}
+        </span>
       </div>
     </Link>
   );

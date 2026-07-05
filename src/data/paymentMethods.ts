@@ -1,4 +1,4 @@
-export type PaymentMethodId = "bkash" | "nagad" | "cash";
+export type PaymentMethodId = "bkash" | "nagad" | "card";
 
 export interface PaymentMethod {
   id: PaymentMethodId;
@@ -7,27 +7,29 @@ export interface PaymentMethod {
   confirmationNote: string;
 }
 
+// Every method settles into escrow: DeshRide holds the fare when the driver
+// accepts, and releases it to the driver only after the trip completes.
 export const PAYMENT_METHODS: PaymentMethod[] = [
   {
     id: "bkash",
     label: "bKash",
     hint: "Pay from your bKash wallet",
     confirmationNote:
-      "A bKash payment request will arrive when the driver confirms. Approve it in the bKash app to lock your seat."
+      "When the driver accepts, you approve a bKash payment. DeshRide holds it and pays the driver after the trip completes."
   },
   {
     id: "nagad",
     label: "Nagad",
     hint: "Pay from your Nagad wallet",
     confirmationNote:
-      "A Nagad payment request will arrive when the driver confirms. Approve it in the Nagad app to lock your seat."
+      "When the driver accepts, you approve a Nagad payment. DeshRide holds it and pays the driver after the trip completes."
   },
   {
-    id: "cash",
-    label: "Cash",
-    hint: "Pay the driver at pickup",
+    id: "card",
+    label: "Card",
+    hint: "Visa or Mastercard",
     confirmationNote:
-      "Bring the exact fare in cash to the pickup point. The driver marks the payment received in app before departure."
+      "When the driver accepts, your card is charged. DeshRide holds the fare and pays the driver after the trip completes."
   }
 ];
 

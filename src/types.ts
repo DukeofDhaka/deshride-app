@@ -1,73 +1,66 @@
-export type CityId =
-  | "dhaka"
-  | "sylhet"
-  | "chattogram"
-  | "coxs-bazar";
+import type { PaymentMethodId } from "./data/paymentMethods";
 
-export type CorridorId =
-  | "dhaka-sylhet"
-  | "sylhet-dhaka"
-  | "dhaka-chattogram"
-  | "chattogram-dhaka"
-  | "dhaka-coxs-bazar"
-  | "coxs-bazar-dhaka";
-
-export interface City {
-  id: CityId;
+export interface Spot {
   name: string;
-  bangla: string;
-  x: number;
-  y: number;
-  region: string;
+  district: string;
+  lat: number;
+  lng: number;
+  note?: string;
 }
 
-export interface Corridor {
-  id: CorridorId;
-  from: CityId;
-  to: CityId;
-  duration: string;
-  fareBand: string;
-  pickupLabel: string;
-  dropoffLabel: string;
-  linePath: string;
-  story: string;
-}
-
-export interface Driver {
+export interface DriverInfo {
   id: string;
   name: string;
-  age: number;
-  rating: number;
-  verifiedTrips: number;
-  responseTime: string;
-  vehicle: string;
-  vehicleColor: string;
-  bio: string;
-  badges: string[];
+  rating: number | null;
+  trips: number;
   accent: string;
 }
 
+export type LuggageSize = "small" | "medium" | "large";
+
+export type RideStatus = "active" | "completed" | "cancelled";
+
 export interface Ride {
   id: string;
-  corridorId: CorridorId;
-  driverId: string;
-  date: string;
-  departureTime: string;
-  arrivalTime: string;
-  pickupPoint: string;
-  dropoffPoint: string;
-  price: number;
-  seatsLeft: number;
-  vehicle: string;
-  comfort: string;
-  luggage: string;
+  driver: DriverInfo;
+  from: Spot;
+  to: Spot;
+  departure: string;
+  seatsTotal: number;
+  pricePerSeat: number;
+  car: string;
+  luggage: LuggageSize;
   rules: string[];
-  bookingNote: string;
+  note?: string;
+  status: RideStatus;
+  createdAt: string;
 }
 
-export interface SearchState {
-  from: CityId;
-  to: CityId;
-  date: string;
+export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled";
+
+// Escrow lifecycle: the fare is collected when the driver accepts ("held"),
+// and paid out to the driver only after the trip completes ("released").
+export type PayStatus = "unpaid" | "held" | "released" | "refunded";
+
+export interface Booking {
+  id: string;
+  rideId: string;
+  guestId: string;
+  guestName: string;
   seats: number;
+  payMethod: PaymentMethodId;
+  status: BookingStatus;
+  payStatus: PayStatus;
+  createdAt: string;
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  phone: string;
+  verified: {
+    phone: boolean;
+    nid: boolean;
+    licence: boolean;
+  };
 }
