@@ -1,13 +1,23 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, HashRouter } from "react-router-dom";
 import App from "./App";
 import "./styles.css";
 
+// VITE_ARTIFACT builds run from a single self-contained HTML file where the
+// URL path is not ours to control, so history-based routing cannot work there.
+const useHashRouter = Boolean(import.meta.env.VITE_ARTIFACT);
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
-      <App />
-    </BrowserRouter>
+    {useHashRouter ? (
+      <HashRouter>
+        <App />
+      </HashRouter>
+    ) : (
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <App />
+      </BrowserRouter>
+    )}
   </React.StrictMode>
 );

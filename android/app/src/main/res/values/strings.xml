@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DeshRide</string>
+    <string name="title_activity_main">DeshRide</string>
+    <string name="package_name">com.deshride.app</string>
+    <string name="custom_url_scheme">com.deshride.app</string>
+</resources>
