@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { getPaymentMethod } from "../data/paymentMethods";
 import { formatBDT } from "../lib/geo";
 import {
   acceptedBookings,
@@ -17,8 +18,8 @@ import {
 } from "../lib/store";
 import { useTranslation } from "../i18n";
 
-function formatDeparture(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
+function formatDeparture(iso: string, language: string): string {
+  return new Date(iso).toLocaleString(language === "bn" ? "bn-BD" : "en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -48,8 +49,13 @@ function StarPicker({ onRate }: { onRate: (stars: number) => void }) {
   );
 }
 
+function paymentLabel(methodId: string, t: (key: string) => string): string {
+  const method = getPaymentMethod(methodId);
+  return method.labelKey ? t(method.labelKey) : method.label;
+}
+
 export function MyRidesPage() {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const [, bump] = useState(0);
   const refresh = () => bump((n) => n + 1);
   const [error, setError] = useState<string | null>(null);
@@ -66,17 +72,17 @@ export function MyRidesPage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>আমার রাইড</h1>
-        <p>আপনি যা চালাচ্ছেন আর যেখানে যাচ্ছেন — সব এক জায়গায়।</p>
+        <h1>{t("myRidesTitle")}</h1>
+        <p>{t("myRidesSubtitle")}</p>
       </div>
 
       {error && <div className="banner banner--warn">{error}</div>}
 
       <div className="detail-panel">
-        <h2>আপনি চালাচ্ছেন</h2>
+        <h2>{t("drivingSection")}</h2>
         {driving.length === 0 && (
           <p className="detail-note">
-            এখনো কোনো রাইড পোস্ট করেননি। <Link className="secondary-link" to="/post">প্রথম রাইডটি দিন →</Link>
+            {t("noDriving")} <Link className="secondary-link" to="/post">{t("firstRideLink")}</Link>
           </p>
         )}
         <div className="stack">
@@ -95,16 +101,16 @@ export function MyRidesPage() {
                       {ride.from.name} → {ride.to.name}
                     </strong>
                     <span>
-                      {formatDeparture(ride.departure)} · {formatBDT(ride.pricePerSeat)}/seat ·{" "}
+                      {formatDeparture(ride.departure, language)} · {formatBDT(ride.pricePerSeat)}/seat ·{" "}
                       {done
-                        ? "ট্রিপ শেষ"
-                        : `${seatsLeft(ride)}/${ride.seatsTotal} সিট খালি`}
+                        ? t("tripDone")
+                        : t("seatsEmpty", { left: seatsLeft(ride), total: ride.seatsTotal })}
                     </span>
                   </div>
                   <div className="manage-card__actions">
-                    {done && <span className="chip chip--good">পেমেন্ট রিলিজড</span>}
+                    {done && <span className="chip chip--good">{t("paymentReleased")}</span>}
                     <Link className="secondary-link" to={`/ride/${ride.id}`}>
-                      দেখুন
+                      {t("view")}
                     </Link>
                     {!done && (
                       <button
@@ -115,7 +121,7 @@ export function MyRidesPage() {
                           refresh();
                         }}
                       >
-                        রাইড বাতিল
+                        {t("cancelRide")}
                       </button>
                     )}
                   </div>
@@ -132,7 +138,7 @@ export function MyRidesPage() {
                             (<a className="secondary-link" href={`tel:${b.guestPhone}`}>{b.guestPhone}</a>)
                           </>
                         )}{" "}
-                        — {b.seats}টি সিট · {b.payMethod} ·{" "}
+                        — {t("seatsCount", { count: b.seats })} · {paymentLabel(b.payMethod, t)} ·{" "}
                         <span
                           className={`chip ${
                             b.payStatus === "released"
@@ -143,10 +149,10 @@ export function MyRidesPage() {
                           }`}
                         >
                           {b.payStatus === "released"
-                            ? "আপনাকে পরিশোধ করা হয়েছে"
+                            ? t("paidToYou")
                             : b.payStatus === "releasing"
-                              ? "রিলিজ হচ্ছে — যাত্রী কনফার্ম বা ২৪ ঘণ্টায় অটো"
-                              : "দেশরাইডের কাছে জমা"}
+                              ? t("paymentReleasing")
+                              : t("heldByDeshRide")}
                         </span>
                       </li>
                     ))}
@@ -162,7 +168,7 @@ export function MyRidesPage() {
                       refresh();
                     }}
                   >
-                    ট্রিপ শেষ — {formatBDT(heldTotal)} রিলিজ শুরু করুন
+                    {t("completeTripRelease", { amount: formatBDT(heldTotal) })}
                   </button>
                 )}
 
@@ -172,8 +178,11 @@ export function MyRidesPage() {
                       {requests.map((b) => (
                         <div key={b.id} className="request-row">
                           <span>
-                            <strong>{b.guestName}</strong> চান {b.seats}টি সিট ·
-                            {" "}{b.payMethod}-এ দেবেন
+                            {t("wantsSeatsPay", {
+                              name: b.guestName,
+                              seats: b.seats,
+                              method: paymentLabel(b.payMethod, t)
+                            })}
                             {b.message && (
                               <em className="request-note">
                                 {t('passengerNote')} “{b.message}”
@@ -186,21 +195,21 @@ export function MyRidesPage() {
                               className="ghost-button ghost-button--good"
                               onClick={() => handleDecision(b.id, "accepted")}
                             >
-                              গ্রহণ করুন — ভাড়া এসক্রোতে যাবে
+                              {t("acceptEscrow")}
                             </button>
                             <button
                               type="button"
                               className="ghost-button"
                               onClick={() => handleDecision(b.id, "declined")}
                             >
-                              না
+                              {t("decline")}
                             </button>
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="detail-note">এই মুহূর্তে কোনো রিকোয়েস্ট নেই।</p>
+                    <p className="detail-note">{t("noPendingRequests")}</p>
                   ))}
               </div>
             );
@@ -209,10 +218,10 @@ export function MyRidesPage() {
       </div>
 
       <div className="detail-panel">
-        <h2>আপনি যাচ্ছেন</h2>
+        <h2>{t("ridingSection")}</h2>
         {requested.length === 0 && (
           <p className="detail-note">
-            এখনো কোনো রিকোয়েস্ট করেননি। <Link className="secondary-link" to="/">রাইড খুঁজুন →</Link>
+            {t("noBookings")} <Link className="secondary-link" to="/">{t("findRideLink")}</Link>
           </p>
         )}
         <div className="stack">
@@ -228,16 +237,16 @@ export function MyRidesPage() {
                       {ride.from.name} → {ride.to.name}
                     </strong>
                     <span>
-                      {formatDeparture(ride.departure)} · {booking.seats}টি সিট · {formatBDT(ride.pricePerSeat * booking.seats)}
-                      {booking.payStatus === "held" && " · ভাড়া দেশরাইডের কাছে জমা"}
-                      {booking.payStatus === "releasing" && " · ট্রিপ শেষ — ভাড়া রিলিজ হচ্ছে"}
-                      {booking.payStatus === "released" && " · ভাড়া ড্রাইভারকে দেওয়া হয়েছে"}
+                      {formatDeparture(ride.departure, language)} · {t("seatsCount", { count: booking.seats })} · {formatBDT(ride.pricePerSeat * booking.seats)}
+                      {booking.payStatus === "held" && t("fareHeld")}
+                      {booking.payStatus === "releasing" && t("fareReleasing")}
+                      {booking.payStatus === "released" && t("fareReleased")}
                       {booking.payStatus === "refunded" &&
-                        ` · ${booking.refundPct === 50 ? "৫০% " : ""}ফেরত পেয়েছেন`}
+                        t("refunded", { pct: booking.refundPct === 50 ? "50% " : "" })}
                     </span>
                     {booking.status === "accepted" && ride.driver.phone && (
                       <span>
-                        ড্রাইভার: {ride.driver.name} ·{" "}
+                        {t("driverPrefix")} {ride.driver.name} ·{" "}
                         <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
                           {ride.driver.phone}
                         </a>
@@ -254,15 +263,15 @@ export function MyRidesPage() {
                     }`}
                   >
                     {booking.status === "pending"
-                      ? "ড্রাইভারের অপেক্ষায়"
+                      ? t("waitingForDriver")
                       : booking.status === "accepted"
-                        ? "কনফার্মড"
-                        : "হয়নি"}
+                        ? t("confirmed")
+                        : t("notAccepted")}
                   </span>
                 </div>
                 <div className="manage-card__actions">
                   <Link className="secondary-link" to={`/ride/${ride.id}`}>
-                    রাইড দেখুন
+                    {t("viewRide")}
                   </Link>
                   {booking.payStatus === "releasing" && (
                     <span className="rate-release">
@@ -280,14 +289,14 @@ export function MyRidesPage() {
                     <button
                       type="button"
                       className="ghost-button ghost-button--danger"
-                      title={booking.payStatus === "held" ? policy.label : undefined}
+                      title={booking.payStatus === "held" ? t(policy.labelKey) : undefined}
                       onClick={() => {
                         cancelMyBooking(booking.id);
                         refresh();
                       }}
                     >
-                      রিকোয়েস্ট বাতিল
-                      {booking.payStatus === "held" ? ` (${policy.label})` : ""}
+                      {t("cancelRequest")}
+                      {booking.payStatus === "held" ? ` (${t(policy.labelKey)})` : ""}
                     </button>
                   )}
                 </div>

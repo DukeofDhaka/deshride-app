@@ -238,12 +238,12 @@ export function sweepPayments() {
 
 // Cancellation ladder: full refund more than 24h out, half inside 24h, and
 // after departure the held fare goes to the driver instead.
-export function refundPolicy(departure: string): { pct: number; label: string } {
+export function refundPolicy(departure: string): { pct: number; labelKey: string } {
   const dep = Date.parse(departure);
   const now = Date.now();
-  if (now < dep - 24 * 3600 * 1000) return { pct: 100, label: "পুরো টাকা ফেরত" };
-  if (now < dep) return { pct: 50, label: "৫০% ফেরত — যাত্রার ২৪ ঘণ্টার মধ্যে" };
-  return { pct: 0, label: "যাত্রা শুরুর পর ফেরত নেই — ভাড়া ড্রাইভার পাবেন" };
+  if (now < dep - 24 * 3600 * 1000) return { pct: 100, labelKey: "refundFull" };
+  if (now < dep) return { pct: 50, labelKey: "refundHalf" };
+  return { pct: 0, labelKey: "refundNone" };
 }
 
 export function cancelMyBooking(bookingId: string): string | null {
@@ -396,7 +396,7 @@ export function ensureSeed() {
       pricePerSeat: 1500,
       car: "Toyota Axio · Silver",
       luggage: "medium",
-      rules: ["No smoking", "AC on highway", "Max 3 in the back"],
+      rules: ["ruleNoSmoking", "ruleHighwayAc", "ruleMaxThreeBack"],
       note: "One tea break at Cumilla Matri Bhandar. I leave on time.",
       status: "active",
       createdAt: new Date().toISOString()
@@ -411,7 +411,7 @@ export function ensureSeed() {
       pricePerSeat: 1300,
       car: "Toyota Fielder · White",
       luggage: "large",
-      rules: ["No smoking", "Ladies-priority front seat"],
+      rules: ["ruleNoSmoking", "ruleWomenFrontSeat"],
       note: "Family car, my brother co-drives. Quiet ride preferred.",
       status: "active",
       createdAt: new Date().toISOString()
@@ -426,7 +426,7 @@ export function ensureSeed() {
       pricePerSeat: 1250,
       car: "Toyota Noah · Black",
       luggage: "large",
-      rules: ["No smoking", "Music ok"],
+      rules: ["ruleNoSmoking", "ruleMusicOk"],
       note: "Padma Bridge route, no ferry. Two pickups possible on Mawa road.",
       status: "active",
       createdAt: new Date().toISOString()
@@ -441,7 +441,7 @@ export function ensureSeed() {
       pricePerSeat: 800,
       car: "Toyota Axio · Silver",
       luggage: "small",
-      rules: ["No smoking", "AC on highway"],
+      rules: ["ruleNoSmoking", "ruleHighwayAc"],
       note: "Beach weekend run. Light luggage only please.",
       status: "active",
       createdAt: new Date().toISOString()
@@ -456,7 +456,7 @@ export function ensureSeed() {
       pricePerSeat: 1450,
       car: "Toyota Fielder · White",
       luggage: "medium",
-      rules: ["No smoking"],
+      rules: ["ruleNoSmoking"],
       note: "Bonpara–Natore route. One stop at Sirajganj food village.",
       status: "active",
       createdAt: new Date().toISOString()

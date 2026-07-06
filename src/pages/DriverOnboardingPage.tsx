@@ -7,6 +7,7 @@ import {
   loadRideDraft,
   saveProfile
 } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 function looksLikeNid(value: string): boolean {
   const digits = value.replace(/\D/g, "");
@@ -40,6 +41,7 @@ export function DriverOnboardingPage() {
   const navigate = useNavigate();
   const profile = getProfile();
   const draft = loadRideDraft();
+  const { t } = useTranslation();
 
   const [phone, setPhone] = useState(profile.phone);
   const [ownerNid, setOwnerNid] = useState(profile.driver?.ownerNid ?? "");
@@ -56,7 +58,7 @@ export function DriverOnboardingPage() {
     try {
       setCarPhoto(await readAndResize(file));
     } catch {
-      setError("Couldn't read that photo — try a different image.");
+      setError(t("photoReadError"));
     }
   }
 
@@ -64,23 +66,23 @@ export function DriverOnboardingPage() {
     event.preventDefault();
     setError(null);
     if (!phone.trim() || phone.replace(/\D/g, "").length < 11) {
-      setError("সঠিক ফোন নম্বর দিন — যাত্রীরা এতেই যোগাযোগ করবেন।");
+      setError(t("errorPhone"));
       return;
     }
     if (!looksLikeNid(ownerNid)) {
-      setError("মালিকের এনআইডি ১০, ১৩ বা ১৭ সংখ্যার হওয়ার কথা।");
+      setError(t("errorOwnerNid"));
       return;
     }
     if (!ownerIsDriver && !looksLikeNid(driverNid)) {
-      setError("ড্রাইভারের এনআইডি ১০, ১৩ বা ১৭ সংখ্যার হওয়ার কথা।");
+      setError(t("errorDriverNid"));
       return;
     }
     if (!plate.trim()) {
-      setError("লাইসেন্স প্লেট নম্বরটি দিন, যেমন: ঢাকা মেট্রো গ 12-3456।");
+      setError(t("errorPlate"));
       return;
     }
     if (!carColor.trim()) {
-      setError("গাড়ির রংটি দিন — পিকআপে চিনতে সুবিধা হয়।");
+      setError(t("errorColor"));
       return;
     }
 
@@ -112,19 +114,15 @@ export function DriverOnboardingPage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>ড্রাইভার প্রোফাইল</h1>
-        <p>
-          {draft
-            ? "রাইড লাইভ হওয়ার আগে একবারের কাজ — এটাই দেশরাইডকে ফেসবুক গ্রুপের চেয়ে নিরাপদ করে।"
-            : "রাইড পোস্ট করতে ড্রাইভার তথ্য পূরণ করুন।"}
-        </p>
+        <h1>{t("driverProfileTitle")}</h1>
+        <p>{draft ? t("driverProfileDraft") : t("driverProfileNoDraft")}</p>
       </div>
 
       <div className="post-grid">
         <form className="post-form" onSubmit={handleSubmit}>
           <div className="field">
             <label className="field__label" htmlFor="ob-phone">
-              ফোন নম্বর
+              {t("phoneNumber")}
             </label>
             <input
               id="ob-phone"
@@ -138,7 +136,7 @@ export function DriverOnboardingPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="ob-owner-nid">
-              গাড়ির মালিকের এনআইডি
+              {t("ownerNid")}
             </label>
             <input
               id="ob-owner-nid"
@@ -156,13 +154,13 @@ export function DriverOnboardingPage() {
               checked={ownerIsDriver}
               onChange={(e) => setOwnerIsDriver(e.target.checked)}
             />
-            <span>মালিক নিজেই ড্রাইভার</span>
+            <span>{t("ownerIsDriver")}</span>
           </label>
 
           {!ownerIsDriver && (
             <div className="field">
               <label className="field__label" htmlFor="ob-driver-nid">
-                ড্রাইভারের এনআইডি
+                {t("driverNid")}
               </label>
               <input
                 id="ob-driver-nid"
@@ -178,25 +176,25 @@ export function DriverOnboardingPage() {
           <div className="search-card__row">
             <div className="field">
               <label className="field__label" htmlFor="ob-plate">
-                লাইসেন্স প্লেট
+                {t("licensePlate")}
               </label>
               <input
                 id="ob-plate"
                 className="field__input"
                 value={plate}
-                placeholder="ঢাকা মেট্রো গ 12-3456"
+                placeholder="Dhaka Metro GA 12-3456"
                 onChange={(e) => setPlate(e.target.value)}
               />
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ob-color">
-                গাড়ির রং
+                {t("carColor")}
               </label>
               <input
                 id="ob-color"
                 className="field__input"
                 value={carColor}
-                placeholder="সিলভার"
+                placeholder={t("carPlaceholder").split("·")[1]?.trim() || "Silver"}
                 onChange={(e) => setCarColor(e.target.value)}
               />
             </div>
@@ -204,7 +202,7 @@ export function DriverOnboardingPage() {
 
           <div className="field">
             <label className="field__label" htmlFor="ob-photo">
-              গাড়ির ছবি — প্লেটসহ পুরো গাড়ি
+              {t("carPhoto")}
             </label>
             <input
               id="ob-photo"
@@ -215,29 +213,27 @@ export function DriverOnboardingPage() {
             />
             {carPhoto && <img className="car-photo-preview" src={carPhoto} alt="Your car" />}
             <p className="field__hint">
-              বুকিংয়ের আগে যাত্রীরা এটি দেখবেন। পরে প্রোফাইল থেকেও বদলাতে পারবেন।
+              {t("carPhotoHint")}
             </p>
           </div>
 
           {error && <p className="form-error">{error}</p>}
 
           <button className="primary-button primary-button--full" type="submit">
-            {draft ? "সেভ করে রাইড পোস্ট করুন" : "ড্রাইভার প্রোফাইল সেভ করুন"}
+            {draft ? t("savePublishRide") : t("saveDriverProfile")}
           </button>
           <p className="detail-note">
-            In production these details are verified against Porichoy (government NID
-            check with face match) and BRTA vehicle records before the first ride goes
-            live. <Link className="secondary-link" to="/post">Back to the ride form</Link>
+            {t("driverProfileNote")} <Link className="secondary-link" to="/post">{t("backToRideForm")}</Link>
           </p>
         </form>
 
         <aside className="detail-aside">
           <div className="detail-panel">
-            <h2>কেন চাই</h2>
+            <h2>{t("whyAsk")}</h2>
             <ul className="panel-list">
-              <li>এনআইডি + ফেস ম্যাচেই প্রতিটি প্রোফাইল আসল।</li>
-              <li>প্লেটের ছবি দেখে যাত্রীরা পিকআপে গাড়ি চিনে নেন।</li>
-              <li>বিআরটিএ তালিকাভুক্তিতেও এই কাগজগুলোই লাগে — এক ফর্মেই দুই কাজ।</li>
+              <li>{t("whyAskNid")}</li>
+              <li>{t("whyAskPhoto")}</li>
+              <li>{t("whyAskProduction")}</li>
             </ul>
           </div>
         </aside>

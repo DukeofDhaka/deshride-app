@@ -4,12 +4,16 @@ import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
 import { seatsLeft } from "../lib/store";
 import { useTranslation } from "../i18n";
 
-function timeOf(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+function localeFor(language: string): string {
+  return language === "bn" ? "bn-BD" : "en-GB";
 }
 
-function dateOf(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
+function timeOf(iso: string, language: string): string {
+  return new Date(iso).toLocaleTimeString(localeFor(language), { hour: "2-digit", minute: "2-digit" });
+}
+
+function dateOf(iso: string, language: string): string {
+  return new Date(iso).toLocaleDateString(localeFor(language), {
     weekday: "short",
     day: "numeric",
     month: "short"
@@ -17,7 +21,7 @@ function dateOf(iso: string): string {
 }
 
 export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }) {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
   const km = roadKm(ride.from, ride.to);
   const left = seatsLeft(ride);
   return (
@@ -28,8 +32,8 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
       onFocus={onHover}
     >
       <div className="ride-row__times">
-        <strong>{timeOf(ride.departure)}</strong>
-        <span>{dateOf(ride.departure)}</span>
+        <strong>{timeOf(ride.departure, language)}</strong>
+        <span>{dateOf(ride.departure, language)}</span>
         <span className="ride-row__duration">{estimateDuration(km)}</span>
       </div>
       <div className="ride-row__route">
@@ -51,14 +55,14 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
               .slice(0, 2)}
           </span>
           {ride.driver.name}
-          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : " · নতুন ড্রাইভার"}
+          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : ` · ${t("rideCardNewDriver")}`}
         </span>
       </div>
       <div className="ride-row__price">
         <strong>{formatBDT(ride.pricePerSeat)}</strong>
-        <span>প্রতি সিট</span>
+        <span>{t("perSeat")}</span>
         <span className={`chip ${left === 0 ? "chip--muted" : "chip--good"}`}>
-          {left === 0 ? "ফুল" : `${left}টি সিট বাকি`}
+          {left === 0 ? t("full") : t("seatsCount", { count: left })}
         </span>
       </div>
     </Link>

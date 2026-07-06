@@ -78,7 +78,7 @@ export function LocationPicker({
         value.name === value.district &&
         areasOf(value.district).length > 0 && (
           <div className="area-chips">
-            <span className="area-chips__label">{value.district} {t('chooseInside')}</span>
+            <span className="area-chips__label">{t('chooseInside', { district: value.district })}</span>
             <div className="rule-grid">
               {areasOf(value.district).map((area) => (
                 <button

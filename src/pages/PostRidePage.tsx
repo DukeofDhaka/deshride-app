@@ -6,7 +6,13 @@ import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } f
 import { createRide, getProfile, saveProfile, saveRideDraft } from "../lib/store";
 import { useTranslation } from "../i18n";
 
-const RULE_OPTIONS = ["ধূমপান নিষেধ", "হাইওয়েতে এসি", "গান চলবে", "পেছনে সর্বোচ্চ ৩ জন", "নারীদের সামনের সিট"];
+const RULE_OPTIONS = [
+  "ruleNoSmoking",
+  "ruleHighwayAc",
+  "ruleMusicOk",
+  "ruleMaxThreeBack",
+  "ruleWomenFrontSeat"
+];
 
 function tomorrow(): string {
   const d = new Date();
@@ -32,7 +38,7 @@ export function PostRidePage() {
   const [priceTouched, setPriceTouched] = useState(false);
   const [car, setCar] = useState("");
   const [luggage, setLuggage] = useState<LuggageSize>("medium");
-  const [rules, setRules] = useState<string[]>(["ধূমপান নিষেধ"]);
+  const [rules, setRules] = useState<string[]>(["ruleNoSmoking"]);
   const [note, setNote] = useState("");
   const [driverName, setDriverName] = useState(profile.name);
   const [error, setError] = useState<string | null>(null);
@@ -51,23 +57,23 @@ export function PostRidePage() {
     event.preventDefault();
     setError(null);
     if (!from || !to) {
-      setError("পিকআপ ও ড্রপ-অফ — দুটোই বেছে নিন।");
+      setError(t("errorPickBoth"));
       return;
     }
     if (from.district === to.district && Math.abs(from.lat - to.lat) < 0.05 && Math.abs(from.lng - to.lng) < 0.05) {
-      setError("পিকআপ আর ড্রপ-অফ একই জায়গা মনে হচ্ছে — দেশরাইড শহর-থেকে-শহরের জন্য।");
+      setError(t("errorSamePlace"));
       return;
     }
     if (!driverName.trim()) {
-      setError("আপনার নাম দিন — নামহীন প্রোফাইলে কেউ রিকোয়েস্ট করবে না।");
+      setError(t("errorDriverName"));
       return;
     }
     if (!effectivePrice || Number(effectivePrice) <= 0) {
-      setError("সিট প্রতি ভাড়া দিন।");
+      setError(t("errorFare"));
       return;
     }
     if (!car.trim()) {
-      setError("কোন গাড়ি চালান লিখুন, যেমন: Toyota Axio · সিলভার।");
+      setError(t("errorCar"));
       return;
     }
 
@@ -113,28 +119,25 @@ export function PostRidePage() {
   return (
     <section className="page">
       <div className="search-banner">
-        <h1>রাইড দিন</h1>
-        <p>
-          আপনি তো যাচ্ছেনই — খালি সিটগুলো পোস্ট করুন। যাত্রীরা রিকোয়েস্ট করবে,
-          আপনি বেছে নেবেন।
-        </p>
+        <h1>{t("postRideTitle")}</h1>
+        <p>{t("postRideSubtitle")}</p>
       </div>
 
       <div className="post-grid">
         <form className="post-form" onSubmit={handleSubmit}>
           <LocationPicker
-            label="পিকআপ"
+            label={t("pickup")}
             value={from}
             onChange={setFrom}
             withNote
-            notePlaceholder="ঠিক কোথা থেকে? যেমন: কলাবাগান বাসস্ট্যান্ড, গেট ২"
+            notePlaceholder={t("pickupNotePlaceholder")}
           />
           <LocationPicker
-            label="ড্রপ-অফ"
+            label={t("dropoff")}
             value={to}
             onChange={setTo}
             withNote
-            notePlaceholder="ঠিক কোথায় নামবেন? যেমন: জিইসি মোড়"
+            notePlaceholder={t("dropoffNotePlaceholder")}
           />
 
           <div className="field">
@@ -170,7 +173,7 @@ export function PostRidePage() {
           <div className="search-card__row">
             <div className="field">
               <label className="field__label" htmlFor="post-date">
-                যাত্রার তারিখ
+                {t("dateOfJourney")}
               </label>
               <input
                 id="post-date"
@@ -183,7 +186,7 @@ export function PostRidePage() {
             </div>
             <div className="field">
               <label className="field__label" htmlFor="post-time">
-                ছাড়ার সময়
+                {t("departureTime")}
               </label>
               <input
                 id="post-time"
@@ -198,7 +201,7 @@ export function PostRidePage() {
           <div className="search-card__row">
             <div className="field">
               <label className="field__label" htmlFor="post-seats">
-                কয়টি সিট
+                {t("seatCount")}
               </label>
               <select
                 id="post-seats"
@@ -215,7 +218,7 @@ export function PostRidePage() {
             </div>
             <div className="field">
               <label className="field__label" htmlFor="post-price">
-                সিট প্রতি ভাড়া (৳)
+                {t("pricePerSeatTaka")}
               </label>
               <input
                 id="post-price"
@@ -234,28 +237,32 @@ export function PostRidePage() {
 
           {fare && km && (
             <p className="field__hint">
-              ~{km} কিমি · {estimateDuration(km)}। এই রুটে এসি বাস ≈
-              {formatBDT(busFareEstimate(km))} — এর নিচে রাখলেই সিট ভরবে। পরামর্শ:{" "}
-              {formatBDT(fare.low)}–{formatBDT(fare.high)}। দাম আপনার হাতে।
+              {t("fareSuggestion", {
+                km,
+                duration: estimateDuration(km),
+                busFare: formatBDT(busFareEstimate(km)),
+                low: formatBDT(fare.low),
+                high: formatBDT(fare.high)
+              })}
             </p>
           )}
 
           <div className="field">
             <label className="field__label" htmlFor="post-car">
-              গাড়ি
+              {t("car")}
             </label>
             <input
               id="post-car"
               className="field__input"
               value={car}
-              placeholder="Toyota Axio · সিলভার"
+              placeholder={t("carPlaceholder")}
               onChange={(e) => setCar(e.target.value)}
             />
           </div>
 
           <div className="field">
             <label className="field__label" htmlFor="post-luggage">
-              লাগেজ
+              {t("luggage")}
             </label>
             <select
               id="post-luggage"
@@ -263,14 +270,14 @@ export function PostRidePage() {
               value={luggage}
               onChange={(e) => setLuggage(e.target.value as LuggageSize)}
             >
-              <option value="small">ছোট — শুধু ব্যাকপ্যাক</option>
-              <option value="medium">মাঝারি — জনপ্রতি এক ব্যাগ</option>
-              <option value="large">বড় — বুট খালি</option>
+              <option value="small">{t("luggageSmall")}</option>
+              <option value="medium">{t("luggageMedium")}</option>
+              <option value="large">{t("luggageLarge")}</option>
             </select>
           </div>
 
           <div className="field">
-            <span className="field__label">রাইডের নিয়ম</span>
+            <span className="field__label">{t("rideRules")}</span>
             <div className="rule-grid">
               {RULE_OPTIONS.map((rule) => (
                 <button
@@ -280,7 +287,7 @@ export function PostRidePage() {
                   aria-pressed={rules.includes(rule)}
                   onClick={() => toggleRule(rule)}
                 >
-                  {rule}
+                  {t(rule)}
                 </button>
               ))}
             </div>
@@ -288,13 +295,13 @@ export function PostRidePage() {
 
           <div className="field">
             <label className="field__label" htmlFor="post-note">
-              আর কিছু (ঐচ্ছিক)
+              {t("noteOptional")}
             </label>
             <textarea
               id="post-note"
               className="field__input field__input--area"
               value={note}
-              placeholder="বিরতি, রুট, সহযাত্রী…"
+              placeholder={t("rideNotePlaceholder")}
               onChange={(e) => setNote(e.target.value)}
             />
           </div>
@@ -302,13 +309,13 @@ export function PostRidePage() {
           {!profile.name && (
             <div className="field">
               <label className="field__label" htmlFor="post-name">
-                আপনার নাম
+                {t("yourName")}
               </label>
               <input
                 id="post-name"
                 className="field__input"
                 value={driverName}
-                placeholder="রাইডে দেখানো হবে"
+                placeholder={t("shownOnRide")}
                 onChange={(e) => setDriverName(e.target.value)}
               />
             </div>
@@ -356,7 +363,7 @@ export function PostRidePage() {
           {error && <p className="form-error">{error}</p>}
 
           <button className="primary-button primary-button--full" type="submit">
-            রাইড পোস্ট করুন
+            {t("postRideSubmit")}
           </button>
         </form>
       </div>
