@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 type Language = 'bn' | 'en';
 
@@ -40,7 +40,39 @@ const translations: Record<Language, Record<string, string>> = {
     nothingOnThatDay: 'কিছু নেই — একই রুটে অন্য দিনের রাইডগুলো দেখুন।',
     noRidesOnRoute: 'এই রুটে এখনো কোনো রাইড নেই।',
     beTheFirst: 'এই রুটে প্রথম হোন।',
-    postSeatsPrompt: 'এই রুটে গাড়ি চালান? খালি সিটগুলো পোস্ট করুন — যাত্রীরা আপনাকে খুঁজে নেবে।'
+    postSeatsPrompt: 'এই রুটে গাড়ি চালান? খালি সিটগুলো পোস্ট করুন — যাত্রীরা আপনাকে খুঁজে নেবে।',
+    stopovers: 'স্টপওভার (পথে যেসব শহরে থামবেন)',
+    addStop: '+ স্টপ যোগ করুন',
+    removeStop: 'বাদ দিন',
+    stopHint: 'স্টপ দিলে মাঝপথের যাত্রীরাও আপনার রাইড খুঁজে পাবে।',
+    returnTripLabel: 'ফিরতি রাইডও পোস্ট করুন',
+    returnDate: 'ফেরার তারিখ',
+    returnTime: 'ফেরার সময়',
+    via: 'হয়ে',
+    msgToDriver: 'ড্রাইভারকে বার্তা (ঐচ্ছিক)',
+    msgPlaceholder: 'যেমন: আমার একটা বড় ব্যাগ আছে, মহাখালী থেকে উঠবো…',
+    instantBook: 'ইনস্টান্ট বুক ⚡',
+    instantBookHint: 'রিকোয়েস্ট নয় — সাথে সাথেই সিট কনফার্ম।',
+    bookNow: 'এখনই বুক করুন ⚡',
+    requestToBook: 'বুকিং রিকোয়েস্ট পাঠান',
+    confirmAndRate: 'ট্রিপ কেমন ছিল? রেটিং দিয়ে পেমেন্ট রিলিজ করুন',
+    releaseNow: 'রিলিজ করুন',
+    yourLevel: 'আপনার লেভেল',
+    points: 'পয়েন্ট',
+    badges: 'ব্যাজ',
+    levelNew: 'নতুন যাত্রী',
+    levelRegular: 'চেনা মুখ',
+    levelRoadMaster: 'রোড মাস্টার',
+    levelLegend: 'দেশরাইড লিজেন্ড',
+    badgeVerifiedDriver: 'ভেরিফায়েড ড্রাইভার',
+    badgeFirstTrip: 'প্রথম ট্রিপ',
+    badgeFiveTrips: '৫ ট্রিপ ক্লাব',
+    badgeInstantBook: 'ইনস্টান্ট বুক আনলকড',
+    badgeFiveStar: '৫★ ড্রাইভার',
+    toNextLevel: 'পরের লেভেলে যেতে আর',
+    maxLevel: 'সর্বোচ্চ লেভেলে পৌঁছে গেছেন!',
+    instantProgress: 'ইনস্টান্ট বুক আনলক হবে ৫টি সিট পূরণ করলে — হয়েছে',
+    passengerNote: 'যাত্রীর বার্তা:'
   },
   en: {
     findRide: 'Find Ride',
@@ -79,11 +111,25 @@ const translations: Record<Language, Record<string, string>> = {
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
+const LANG_KEY = 'deshride.lang.v1';
+
+function initialLanguage(): Language {
+  try {
+    const stored = localStorage.getItem(LANG_KEY);
+    if (stored === 'bn' || stored === 'en') return stored;
+  } catch { /* storage unavailable */ }
+  return 'bn';
+}
+
 export function TranslationProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('bn');
+  const [language, setLanguage] = useState<Language>(initialLanguage);
 
   const toggleLanguage = () => {
-    setLanguage(prev => prev === 'bn' ? 'en' : 'bn');
+    setLanguage(prev => {
+      const next = prev === 'bn' ? 'en' : 'bn';
+      try { localStorage.setItem(LANG_KEY, next); } catch { /* ignore */ }
+      return next;
+    });
   };
 
   const t = (key: string) => {

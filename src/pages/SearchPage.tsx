@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { RideCard } from "../components/RideCard";
 import { searchRides } from "../lib/store";
@@ -6,7 +6,7 @@ import { useTranslation } from "../i18n";
 
 export function SearchPage() {
   const [params] = useSearchParams();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const fromDistrict = params.get("from") ?? undefined;
   const toDistrict = params.get("to") ?? undefined;
   const date = params.get("date") ?? undefined;
@@ -22,8 +22,6 @@ export function SearchPage() {
   );
 
   const results = exact.length > 0 ? exact : nearby;
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const active = results.find((r) => r.id === activeId) ?? results[0];
 
   const title = [fromDistrict ?? t('anywhere'), toDistrict ?? t('anywhere')].join(" → ");
 
@@ -43,7 +41,7 @@ export function SearchPage() {
       <div className="results-grid">
         <div className="results-list">
           {results.map((ride) => (
-            <RideCard key={ride.id} ride={ride} onHover={() => setActiveId(ride.id)} />
+            <RideCard key={ride.id} ride={ride} />
           ))}
 
           {results.length === 0 && (

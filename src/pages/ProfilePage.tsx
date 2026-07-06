@@ -1,8 +1,26 @@
 import { useState } from "react";
-import { getProfile, myBookings, myRides, saveProfile } from "../lib/store";
+import {
+  INSTANT_BOOK_SEATS,
+  currentLevel,
+  earnedBadges,
+  getProfile,
+  getStats,
+  instantBookUnlocked,
+  myBookings,
+  myRides,
+  saveProfile
+} from "../lib/store";
+import { useTranslation } from "../i18n";
 
 export function ProfilePage() {
+  const { t } = useTranslation();
   const profile = getProfile();
+  const stats = getStats();
+  const level = currentLevel(stats.points);
+  const badges = earnedBadges();
+  const progressPct = level.next
+    ? Math.min(100, Math.round(((stats.points - level.floor) / (level.next - level.floor)) * 100))
+    : 100;
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
   const [saved, setSaved] = useState(false);
@@ -57,6 +75,41 @@ export function ProfilePage() {
               {saved ? "সেভ হয়েছে ✓" : "সেভ করুন"}
             </button>
           </form>
+
+          <div className="detail-panel">
+            <h2>{t('yourLevel')}</h2>
+            <div className="level-head">
+              <strong className="level-name">{t(level.key)}</strong>
+              <span className="chip chip--good">
+                {stats.points} {t('points')}
+              </span>
+            </div>
+            <div className="level-bar" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
+              <div className="level-bar__fill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <p className="detail-note">
+              {level.next
+                ? `${t('toNextLevel')} ${level.next - stats.points} ${t('points')}`
+                : t('maxLevel')}
+            </p>
+            {!instantBookUnlocked() && (
+              <p className="detail-note">
+                ⚡ {t('instantProgress')} {stats.seatsFilled}/{INSTANT_BOOK_SEATS}
+              </p>
+            )}
+            {badges.length > 0 && (
+              <>
+                <h2>{t('badges')}</h2>
+                <div className="rule-grid">
+                  {badges.map((key) => (
+                    <span key={key} className="pill">
+                      {t(key)}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
 
           <div className="detail-panel">
             <h2>ভেরিফিকেশন</h2>

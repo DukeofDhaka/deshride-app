@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { Ride } from "../types";
 import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
 import { seatsLeft } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -16,6 +17,7 @@ function dateOf(iso: string): string {
 }
 
 export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }) {
+  const { t } = useTranslation();
   const km = roadKm(ride.from, ride.to);
   const left = seatsLeft(ride);
   return (
@@ -35,8 +37,11 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
           {ride.from.name} → {ride.to.name}
         </strong>
         <span>
-          {ride.from.note || ride.from.district} · {ride.to.note || ride.to.district}
+          {ride.stops && ride.stops.length > 0
+            ? `${t('via')} ${ride.stops.map((s) => s.name).join(", ")}`
+            : `${ride.from.note || ride.from.district} · ${ride.to.note || ride.to.district}`}
         </span>
+        {ride.instantBook && <span className="chip chip--flash">{t('instantBook')}</span>}
         <span className="ride-row__driver">
           <span className="avatar avatar--dot" style={{ backgroundColor: ride.driver.accent }}>
             {ride.driver.name

@@ -1,41 +1,32 @@
 import { useState } from "react";
 import type { Spot } from "../types";
-import { areasOf, findNearest, searchPlaces } from "../data/gazetteer";
+import { areasOf, searchPlaces } from "../data/gazetteer";
 import { useTranslation } from "../i18n";
 
 interface LocationPickerProps {
   label: string;
   value: Spot | null;
   onChange: (spot: Spot | null) => void;
-  allowMapPick?: boolean;
   withNote?: boolean;
+  notePlaceholder?: string;
 }
 
 export function LocationPicker({
   label,
   value,
   onChange,
-  allowMapPick = false,
   withNote = false,
+  notePlaceholder
 }: LocationPickerProps) {
   const { t } = useTranslation();
-  const notePlaceholder = t('meetWhere');
+  const noteHint = notePlaceholder ?? t('meetWhere');
   const placeholder = t('districtOrArea');
 
   const [query, setQuery] = useState("");
-  const [mapOpen, setMapOpen] = useState(false);
   const [focused, setFocused] = useState(false);
 
   const results = searchPlaces(query);
   const showList = focused && query.length > 0 && !value;
-
-  function handlePick(lat: number, lng: number) {
-    const { place, km } = findNearest(lat, lng);
-    const name = km <= 12 ? place.name : `${place.name} ${t('near')}`;
-    onChange({ name, district: place.name, lat, lng, note: value?.note });
-    setQuery("");
-    setMapOpen(false);
-  }
 
   return (
     <div className="field">
@@ -115,7 +106,7 @@ export function LocationPicker({
         <input
           className="field__input field__input--note"
           value={value.note ?? ""}
-          placeholder={notePlaceholder}
+          placeholder={noteHint}
           onChange={(e) => onChange({ ...value, note: e.target.value })}
         />
       )}

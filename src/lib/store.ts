@@ -65,16 +65,25 @@ export function listUpcomingRides(): Ride[] {
     .sort((a, b) => a.departure.localeCompare(b.departure));
 }
 
+function waypoints(r: Ride): string[] {
+  return [r.from, ...(r.stops ?? []), r.to].map((s) => s.district);
+}
+
+// A ride matches when the requested origin comes before the requested
+// destination anywhere along its route, stopovers included.
 export function searchRides(params: {
   fromDistrict?: string;
   toDistrict?: string;
   date?: string;
 }): Ride[] {
   return listUpcomingRides().filter((r) => {
-    if (params.fromDistrict && r.from.district !== params.fromDistrict) return false;
-    if (params.toDistrict && r.to.district !== params.toDistrict) return false;
     if (params.date && r.departure.slice(0, 10) !== params.date) return false;
-    return true;
+    const route = waypoints(r);
+    const fromIdx = params.fromDistrict ? route.indexOf(params.fromDistrict) : 0;
+    const toIdx = params.toDistrict ? route.lastIndexOf(params.toDistrict) : route.length - 1;
+    if (params.fromDistrict && fromIdx === -1) return false;
+    if (params.toDistrict && toIdx === -1) return false;
+    return fromIdx < toIdx || (!params.fromDistrict && !params.toDistrict);
   });
 }
 
@@ -85,6 +94,7 @@ export function getRide(id: string): Ride | undefined {
 export interface NewRide {
   from: Spot;
   to: Spot;
+  stops?: Spot[];
   departure: string;
   seatsTotal: number;
   pricePerSeat: number;
@@ -96,16 +106,18 @@ export interface NewRide {
 
 export function createRide(input: NewRide): Ride {
   const profile = getProfile();
+  const rep = driverRating(profile.id);
   const ride: Ride = {
     id: uid("ride"),
     driver: {
       id: profile.id,
       name: profile.name || "You",
-      rating: null,
-      trips: myRides().length,
+      rating: rep.avg,
+      trips: getStats().driverTrips,
       accent: "#2f6f64",
       phone: profile.phone || undefined
     },
+    instantBook: instantBookUnlocked(),
     status: "active",
     createdAt: new Date().toISOString(),
     ...input
@@ -173,6 +185,9 @@ export function myRides(): Ride[] {
 // the rider can confirm to release immediately, or it auto-releases.
 export function completeRide(id: string) {
   const releaseAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+  const seatsSold = allBookings()
+    .filter((b) => b.rideId === id && b.status === "accepted" && b.payStatus === "held")
+    .reduce((sum, b) => sum + b.seats, 0);
   saveRides(
     allRides().map((r) => (r.id === id ? { ...r, status: "completed" as const } : r))
   );
@@ -182,6 +197,11 @@ export function completeRide(id: string) {
         ? { ...b, payStatus: "releasing" as const, releaseAt }
         : b
     )
+  );
+  const s = getStats();
+  updateStats(
+    { driverTrips: s.driverTrips + 1, seatsFilled: s.seatsFilled + seatsSold },
+    50 + 10 * seatsSold
   );
 }
 
@@ -286,9 +306,13 @@ export function myBookingForRide(rideId: string): Booking | undefined {
 export function requestBooking(
   rideId: string,
   seats: number,
-  payMethod: PaymentMethodId
+  payMethod: PaymentMethodId,
+  message?: string
 ): Booking {
   const profile = getProfile();
+  // Instant Book rides skip the approval queue: the seat is confirmed and
+  // the fare goes to escrow the moment the rider books.
+  const instant = Boolean(getRide(rideId)?.instantBook);
   const booking: Booking = {
     id: uid("bk"),
     rideId,
@@ -297,8 +321,9 @@ export function requestBooking(
     guestPhone: profile.phone || undefined,
     seats,
     payMethod,
-    status: "pending",
-    payStatus: "unpaid",
+    message: message?.trim() || undefined,
+    status: instant ? "accepted" : "pending",
+    payStatus: instant ? "held" : "unpaid",
     createdAt: new Date().toISOString()
   };
   saveBookings([...allBookings(), booking]);
@@ -438,4 +463,99 @@ export function ensureSeed() {
     }
   ];
   saveRides(seedRides);
+}
+
+// --- gamification & reputation ------------------------------------------------
+
+// Poparide's rule, adopted: Instant Book unlocks after a driver has carried
+// five paying passengers. Points/levels/badges sit on top of the same stats.
+export const INSTANT_BOOK_SEATS = 5;
+
+export interface Stats {
+  points: number;
+  driverTrips: number;
+  guestTrips: number;
+  seatsFilled: number;
+}
+
+const STATS_KEY = "deshride.stats.v1";
+const RATINGS_KEY = "deshride.ratings.v1";
+
+export function getStats(): Stats {
+  return load<Stats>(STATS_KEY, { points: 0, driverTrips: 0, guestTrips: 0, seatsFilled: 0 });
+}
+
+function updateStats(patch: Partial<Stats>, addPoints = 0) {
+  const s = getStats();
+  save(STATS_KEY, {
+    points: s.points + addPoints,
+    driverTrips: patch.driverTrips ?? s.driverTrips,
+    guestTrips: patch.guestTrips ?? s.guestTrips,
+    seatsFilled: patch.seatsFilled ?? s.seatsFilled
+  });
+}
+
+export function instantBookUnlocked(): boolean {
+  return getStats().seatsFilled >= INSTANT_BOOK_SEATS;
+}
+
+type RatingsMap = Record<string, number[]>;
+
+export function addDriverRating(driverId: string, stars: number) {
+  const all = load<RatingsMap>(RATINGS_KEY, {});
+  all[driverId] = [...(all[driverId] ?? []), Math.max(1, Math.min(5, stars))];
+  save(RATINGS_KEY, all);
+}
+
+export function driverRating(driverId: string): { avg: number | null; count: number } {
+  const list = load<RatingsMap>(RATINGS_KEY, {})[driverId] ?? [];
+  if (list.length === 0) return { avg: null, count: 0 };
+  return { avg: list.reduce((a, b) => a + b, 0) / list.length, count: list.length };
+}
+
+export interface Level {
+  key: string;
+  floor: number;
+  next: number | null;
+}
+
+// Level ladder by DeshPoints; names resolve through i18n keys.
+export const LEVELS: Level[] = [
+  { key: "levelNew", floor: 0, next: 100 },
+  { key: "levelRegular", floor: 100, next: 300 },
+  { key: "levelRoadMaster", floor: 300, next: 800 },
+  { key: "levelLegend", floor: 800, next: null }
+];
+
+export function currentLevel(points: number): Level {
+  return [...LEVELS].reverse().find((l) => points >= l.floor) ?? LEVELS[0];
+}
+
+export function earnedBadges(): string[] {
+  const s = getStats();
+  const profile = getProfile();
+  const { avg, count } = driverRating(profile.id);
+  const badges: string[] = [];
+  if (profile.driver) badges.push("badgeVerifiedDriver");
+  if (s.driverTrips + s.guestTrips >= 1) badges.push("badgeFirstTrip");
+  if (s.driverTrips >= 5) badges.push("badgeFiveTrips");
+  if (instantBookUnlocked()) badges.push("badgeInstantBook");
+  if (avg !== null && avg >= 4.8 && count >= 3) badges.push("badgeFiveStar");
+  return badges;
+}
+
+// Rider confirms the trip and rates the driver in one step.
+export function confirmReleaseAndRate(bookingId: string, stars: number | null) {
+  const booking = allBookings().find((b) => b.id === bookingId);
+  if (!booking) return;
+  saveBookings(
+    allBookings().map((b) =>
+      b.id === bookingId && b.payStatus === "releasing"
+        ? { ...b, payStatus: "released" as const, rating: stars ?? b.rating }
+        : b
+    )
+  );
+  const ride = getRide(booking.rideId);
+  if (stars && ride) addDriverRating(ride.driver.id, stars);
+  updateStats({ guestTrips: getStats().guestTrips + 1 }, 20);
 }
