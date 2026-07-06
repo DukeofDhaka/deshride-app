@@ -3,7 +3,7 @@ import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
 import { recentSearches, rememberSearch } from "../lib/store";
-import { findNearest } from "../data/gazetteer";
+import { findNearest, type SearchOrigin } from "../data/gazetteer";
 import { BD_BOUNDS } from "../lib/geo";
 import { useTranslation } from "../i18n";
 
@@ -18,6 +18,7 @@ export function HomePage() {
   const { t } = useTranslation();
   const [from, setFrom] = useState<Spot | null>(null);
   const [to, setTo] = useState<Spot | null>(null);
+  const [currentOrigin, setCurrentOrigin] = useState<SearchOrigin | null>(null);
   const [date, setDate] = useState(tomorrow());
   const [seats, setSeats] = useState(1);
 
@@ -35,6 +36,7 @@ export function HomePage() {
         ) {
           return;
         }
+        setCurrentOrigin({ lat, lng });
         setFrom((current) => {
           if (current) return current;
           const { place } = findNearest(lat, lng);
@@ -85,8 +87,18 @@ export function HomePage() {
           </p>
 
           <form className="search-card" onSubmit={handleSearch}>
-            <LocationPicker label={t('fromWhere')} value={from} onChange={setFrom} />
-            <LocationPicker label={t('toWhere')} value={to} onChange={setTo} />
+            <LocationPicker
+              label={t('fromWhere')}
+              value={from}
+              onChange={setFrom}
+              originHint={currentOrigin}
+            />
+            <LocationPicker
+              label={t('toWhere')}
+              value={to}
+              onChange={setTo}
+              originHint={currentOrigin}
+            />
             <div className="search-card__row">
               <div className="field">
                 <label className="field__label" htmlFor="search-date">

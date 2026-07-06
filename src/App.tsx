@@ -8,6 +8,7 @@ import { PostRidePage } from "./pages/PostRidePage";
 import { MyRidesPage } from "./pages/MyRidesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DriverOnboardingPage } from "./pages/DriverOnboardingPage";
+import { ChatPage } from "./pages/ChatPage";
 import { ensureSeed, sweepPayments } from "./lib/store";
 
 ensureSeed();
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/post" element={<PostRidePage />} />
           <Route path="/driver-onboarding" element={<DriverOnboardingPage />} />
           <Route path="/rides" element={<MyRidesPage />} />
+          <Route path="/chat/:bookingId" element={<ChatPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

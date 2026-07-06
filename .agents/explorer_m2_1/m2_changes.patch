@@ -1,0 +1,132 @@
+diff --git a/src/i18n.tsx b/src/i18n.tsx
+index d65efbe..4fc0298 100644
+--- a/src/i18n.tsx
++++ b/src/i18n.tsx
+@@ -165,8 +165,9 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
+     heldByDeshRide: 'দেশরাইডের কাছে জমা',
+     completeTripRelease: 'ট্রিপ শেষ — {amount} রিলিজ শুরু করুন',
+     wantsSeatsPay: '{name} চান {seats}টি সিট · {method}-এ দেবেন',
++    accept: 'গ্রহণ করুন',
+     acceptEscrow: 'গ্রহণ করুন — ভাড়া এসক্রোতে যাবে',
+-    decline: 'না',
++    decline: 'প্রত্যাখ্যান করুন',
+     noPendingRequests: 'এই মুহূর্তে কোনো রিকোয়েস্ট নেই।',
+     ridingSection: 'আপনি যাচ্ছেন',
+     noBookings: 'এখনো কোনো রিকোয়েস্ট করেননি।',
+@@ -397,8 +398,9 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
+     heldByDeshRide: 'Held by DeshRide',
+     completeTripRelease: 'Trip complete — start releasing {amount}',
+     wantsSeatsPay: '{name} wants {seats} seat(s) · will pay by {method}',
++    accept: 'Accept',
+     acceptEscrow: 'Accept — move fare to escrow',
+-    decline: 'No',
++    decline: 'Decline',
+     noPendingRequests: 'No requests right now.',
+     ridingSection: 'You are going',
+diff --git a/src/lib/store.ts b/src/lib/store.ts
+index e998c25..6c268a7 100644
+--- a/src/lib/store.ts
++++ b/src/lib/store.ts
+@@ -102,6 +102,7 @@ export interface NewRide {
+   car: string;
+   luggage: Ride["luggage"];
+   rules: string[];
+   note?: string;
++  instantBook?: boolean;
+ }
+ 
+ export function createRide(input: NewRide): Ride {
+@@ -117,11 +117,11 @@ export function createRide(input: NewRide): Ride {
+       accent: "#2f6f64",
+       phone: profile.phone || undefined
+     },
+-    instantBook: instantBookUnlocked(),
+     status: "active",
+     createdAt: new Date().toISOString(),
+-    ...input
++    ...input,
++    instantBook: instantBookUnlocked() ? (input.instantBook ?? false) : false
+   };
+   saveRides([...allRides(), ride]);
+   return ride;
+diff --git a/src/pages/MyRidesPage.tsx b/src/pages/MyRidesPage.tsx
+index d7a14e9..5626a5d 100644
+--- a/src/pages/MyRidesPage.tsx
++++ b/src/pages/MyRidesPage.tsx
+@@ -195,7 +195,7 @@ export function MyRidesPage() {
+                               className="ghost-button ghost-button--good"
+                               onClick={() => handleDecision(b.id, "accepted")}
+                             >
+-                              {t("acceptEscrow")}
++                              {t("accept")}
+                             </button>
+                             <button
+                               type="button"
+                               className="ghost-button"
+                               onClick={() => handleDecision(b.id, "declined")}
+                             >
+-                              {t("decline")}
++                              {t("decline")}
+                             </button>
+                           </span>
+                         </div>
+diff --git a/src/pages/PostRidePage.tsx b/src/pages/PostRidePage.tsx
+index 8e45a0b..c15c898 100644
+--- a/src/pages/PostRidePage.tsx
++++ b/src/pages/PostRidePage.tsx
+@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
+ import type { LuggageSize, Spot } from "../types";
+ import { LocationPicker } from "../components/LocationPicker";
+ import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
+-import { createRide, getProfile, saveProfile, saveRideDraft } from "../lib/store";
++import { createRide, getProfile, saveProfile, saveRideDraft, instantBookUnlocked, getStats, INSTANT_BOOK_SEATS } from "../lib/store";
+ import { useTranslation } from "../i18n";
+ 
+ const RULE_OPTIONS = [
+@@ -43,6 +43,8 @@ export function PostRidePage() {
+   const [driverName, setDriverName] = useState(profile.name);
+   const [error, setError] = useState<string | null>(null);
+ 
++  const hasInstantBookUnlock = useMemo(() => instantBookUnlocked(), []);
++  const [instantBook, setInstantBook] = useState(hasInstantBookUnlock);
++
+   const km = from && to ? roadKm(from, to) : null;
+   const fare = useMemo(() => (km ? suggestedFare(km) : null), [km]);
+   const effectivePrice = priceTouched && price !== "" ? Number(price) : (fare?.mid ?? "");
+@@ -94,7 +96,8 @@ export function PostRidePage() {
+       car: car.trim(),
+       luggage,
+       rules,
+-      note: note.trim() || undefined
++      note: note.trim() || undefined,
++      instantBook
+     };
+ 
+     // First-time drivers finish their driver profile before the ride goes live.
+@@ -308,6 +311,23 @@ export function PostRidePage() {
+             </div>
+           )}
+ 
++          <div className="field">
++            <label className="check-row">
++              <input
++                type="checkbox"
++                checked={instantBook}
++                disabled={!hasInstantBookUnlock}
++                onChange={(e) => setInstantBook(e.target.checked)}
++              />
++              <span>{t("instantBook")}</span>
++            </label>
++            <p className="field__hint">
++              {t("instantBookHint")}
++              {!hasInstantBookUnlock && (
++                <span style={{ display: "block", marginTop: "4px", color: "var(--ink-soft)" }}>
++                  {t("instantProgress")}: {getStats().seatsFilled}/{INSTANT_BOOK_SEATS}
++                </span>
++              )}
++            </p>
++          </div>
++
+           <label className="check-row">
+             <input
+               type="checkbox"

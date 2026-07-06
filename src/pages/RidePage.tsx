@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { PAYMENT_METHODS, getPaymentMethod, type PaymentMethodId } from "../data/paymentMethods";
 import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
@@ -44,11 +44,22 @@ export function RidePage() {
 
   const { language, t } = useTranslation();
   const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const handleStateChange = () => {
+      setRefresh((n) => n + 1);
+    };
+    window.addEventListener("deshride-state-change", handleStateChange);
+    return () => {
+      window.removeEventListener("deshride-state-change", handleStateChange);
+    };
+  }, []);
   const [seats, setSeats] = useState(1);
   const [payMethod, setPayMethod] = useState<PaymentMethodId>("bkash");
   const [guestName, setGuestName] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showMsgWarning, setShowMsgWarning] = useState(false);
 
   const ride = rideId ? getRide(rideId) : undefined;
   const profile = getProfile();
@@ -67,10 +78,10 @@ export function RidePage() {
     );
   }
 
-  const isMine = ride.driver.id === profile.id;
+  const myBooking = myBookingForRide(ride.id);
+  const isMine = ride.driver.id === profile.id && !myBooking;
   const left = seatsLeft(ride);
   const km = roadKm(ride.from, ride.to);
-  const myBooking = myBookingForRide(ride.id);
   const requests = isMine ? pendingRequests(ride.id) : [];
   void refresh;
 
@@ -231,6 +242,11 @@ export function RidePage() {
                   </a>
                 </p>
               )}
+              {myBooking.status === "accepted" && ride.status !== "completed" && (
+                <Link className="primary-button primary-button--full" to={`/chat/${myBooking.id}`}>
+                  Message
+                </Link>
+              )}
               <Link className="secondary-link secondary-link--button" to="/rides">
                 {t("viewInMyRides")}
               </Link>
@@ -292,8 +308,18 @@ export function RidePage() {
                   className="field__input field__input--area"
                   value={message}
                   placeholder={t('msgPlaceholder')}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMessage(val);
+                    const phoneRegex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
+                    setShowMsgWarning(phoneRegex.test(val));
+                  }}
                 />
+                {showMsgWarning && (
+                  <div className="banner banner--warn" style={{ marginTop: "8px" }}>
+                    {language === "bn" ? "নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না।" : "Warning: Sharing phone numbers in public fields is not allowed."}
+                  </div>
+                )}
               </div>
 
               <div className="pay-options" role="radiogroup" aria-label="Payment method">

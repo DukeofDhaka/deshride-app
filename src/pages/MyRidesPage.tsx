@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
+import { flushSync } from "react-dom";
 import { getPaymentMethod } from "../data/paymentMethods";
 import { formatBDT } from "../lib/geo";
 import {
@@ -8,12 +9,14 @@ import {
   cancelRide,
   completeRide,
   confirmReleaseAndRate,
+  getProfile,
   getRide,
   myBookings,
   myRides,
   pendingRequests,
   refundPolicy,
   seatsLeft,
+  subscribe,
   updateBookingStatus
 } from "../lib/store";
 import { useTranslation } from "../i18n";
@@ -60,8 +63,24 @@ export function MyRidesPage() {
   const refresh = () => bump((n) => n + 1);
   const [error, setError] = useState<string | null>(null);
 
+  useSyncExternalStore(subscribe, () => {
+    return localStorage.getItem("deshride.bookings.v1") + "|" + localStorage.getItem("deshride.rides.v1");
+  });
+
+  useEffect(() => {
+    const handleStateChange = () => {
+      flushSync(() => {
+        refresh();
+      });
+    };
+    window.addEventListener("deshride-state-change", handleStateChange);
+    return () => {
+      window.removeEventListener("deshride-state-change", handleStateChange);
+    };
+  }, []);
+
   const driving = myRides();
-  const requested = myBookings();
+  const requested = myBookings().filter((b) => getRide(b.rideId)?.driver.id !== getProfile().id);
 
   function handleDecision(bookingId: string, status: "accepted" | "declined") {
     const problem = updateBookingStatus(bookingId, status);
@@ -130,30 +149,37 @@ export function MyRidesPage() {
                 {confirmed.length > 0 && (
                   <ul className="panel-list">
                     {confirmed.map((b) => (
-                      <li key={b.id}>
-                        ✓ {b.guestName}
-                        {b.guestPhone && (
-                          <>
-                            {" "}
-                            (<a className="secondary-link" href={`tel:${b.guestPhone}`}>{b.guestPhone}</a>)
-                          </>
-                        )}{" "}
-                        — {t("seatsCount", { count: b.seats })} · {paymentLabel(b.payMethod, t)} ·{" "}
-                        <span
-                          className={`chip ${
-                            b.payStatus === "released"
-                              ? "chip--good"
+                      <li key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          ✓ {b.guestName}
+                          {b.guestPhone && (
+                            <>
+                              {" "}
+                              (<a className="secondary-link" href={`tel:${b.guestPhone}`}>{b.guestPhone}</a>)
+                            </>
+                          )}{" "}
+                          — {t("seatsCount", { count: b.seats })} · {paymentLabel(b.payMethod, t)} ·{" "}
+                          <span
+                            className={`chip ${
+                              b.payStatus === "released"
+                                ? "chip--good"
+                                : b.payStatus === "releasing"
+                                  ? "chip--wait"
+                                  : "chip--wait"
+                            }`}
+                          >
+                            {b.payStatus === "released"
+                              ? t("paidToYou")
                               : b.payStatus === "releasing"
-                                ? "chip--wait"
-                                : "chip--wait"
-                          }`}
-                        >
-                          {b.payStatus === "released"
-                            ? t("paidToYou")
-                            : b.payStatus === "releasing"
-                              ? t("paymentReleasing")
-                              : t("heldByDeshRide")}
-                        </span>
+                                ? t("paymentReleasing")
+                                : t("heldByDeshRide")}
+                          </span>
+                        </div>
+                        {!done && (
+                          <Link className="primary-button" to={`/chat/${b.id}`} style={{ padding: '4px 8px', fontSize: '14px' }}>
+                            Message
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -195,7 +221,7 @@ export function MyRidesPage() {
                               className="ghost-button ghost-button--good"
                               onClick={() => handleDecision(b.id, "accepted")}
                             >
-                              {t("acceptEscrow")}
+                              {t("accept")}
                             </button>
                             <button
                               type="button"
@@ -283,6 +309,11 @@ export function MyRidesPage() {
                         }}
                       />
                     </span>
+                  )}
+                  {ride.status !== "completed" && ride.status !== "cancelled" && booking.status === "accepted" && (
+                    <Link className="primary-button" to={`/chat/${booking.id}`}>
+                      Message
+                    </Link>
                   )}
                   {(booking.status === "pending" ||
                     (booking.status === "accepted" && booking.payStatus === "held")) && (

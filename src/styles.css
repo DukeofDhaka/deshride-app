@@ -1077,6 +1077,15 @@ main {
   overflow-y: auto;
 }
 
+.pick-list__meta {
+  padding: 7px 10px 5px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .pick-list button {
   width: 100%;
   display: flex;
@@ -1086,6 +1095,16 @@ main {
   padding: 10px 12px;
   border-radius: 10px;
   text-align: left;
+}
+
+.pick-list__locate {
+  background: rgba(222, 101, 71, 0.1);
+  color: var(--ink);
+}
+
+.pick-list__custom {
+  border-top: 1px solid rgba(23, 63, 57, 0.08);
+  color: var(--ink);
 }
 
 .pick-list button:hover {

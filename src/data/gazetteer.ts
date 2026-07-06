@@ -1,4 +1,5 @@
 import { haversineKm } from "../lib/geo";
+import { ADMIN_AREAS_BY_DISTRICT } from "./adminAreas";
 
 export interface Place {
   name: string;
@@ -7,6 +8,7 @@ export interface Place {
   lng: number;
   kind?: "district" | "area";
   district?: string;
+  aliases?: string[];
 }
 
 // All 64 districts of Bangladesh, coordinates at the district headquarters.
@@ -26,9 +28,9 @@ export const DISTRICTS: Place[] = [
   { name: "Shariatpur", division: "Dhaka", lat: 23.24, lng: 90.43 },
   { name: "Narsingdi", division: "Dhaka", lat: 23.92, lng: 90.72 },
   // Chattogram division
-  { name: "Chattogram", division: "Chattogram", lat: 22.36, lng: 91.83 },
+  { name: "Chattogram", aliases: ["Chittagong"], division: "Chattogram", lat: 22.36, lng: 91.83 },
   { name: "Cox's Bazar", division: "Chattogram", lat: 21.44, lng: 91.97 },
-  { name: "Cumilla", division: "Chattogram", lat: 23.46, lng: 91.18 },
+  { name: "Cumilla", aliases: ["Comilla"], division: "Chattogram", lat: 23.46, lng: 91.18 },
   { name: "Brahmanbaria", division: "Chattogram", lat: 23.96, lng: 91.11 },
   { name: "Chandpur", division: "Chattogram", lat: 23.23, lng: 90.67 },
   { name: "Lakshmipur", division: "Chattogram", lat: 22.94, lng: 90.83 },
@@ -44,11 +46,11 @@ export const DISTRICTS: Place[] = [
   { name: "Chapainawabganj", division: "Rajshahi", lat: 24.6, lng: 88.27 },
   { name: "Pabna", division: "Rajshahi", lat: 24.0, lng: 89.24 },
   { name: "Sirajganj", division: "Rajshahi", lat: 24.45, lng: 89.71 },
-  { name: "Bogura", division: "Rajshahi", lat: 24.85, lng: 89.37 },
+  { name: "Bogura", aliases: ["Bogra"], division: "Rajshahi", lat: 24.85, lng: 89.37 },
   { name: "Joypurhat", division: "Rajshahi", lat: 25.1, lng: 89.02 },
   // Khulna division
   { name: "Khulna", division: "Khulna", lat: 22.82, lng: 89.55 },
-  { name: "Jashore", division: "Khulna", lat: 23.17, lng: 89.21 },
+  { name: "Jashore", aliases: ["Jessore"], division: "Khulna", lat: 23.17, lng: 89.21 },
   { name: "Satkhira", division: "Khulna", lat: 22.72, lng: 89.07 },
   { name: "Bagerhat", division: "Khulna", lat: 22.65, lng: 89.79 },
   { name: "Narail", division: "Khulna", lat: 23.17, lng: 89.5 },
@@ -58,7 +60,7 @@ export const DISTRICTS: Place[] = [
   { name: "Chuadanga", division: "Khulna", lat: 23.64, lng: 88.86 },
   { name: "Meherpur", division: "Khulna", lat: 23.76, lng: 88.63 },
   // Barishal division
-  { name: "Barishal", division: "Barishal", lat: 22.7, lng: 90.37 },
+  { name: "Barishal", aliases: ["Barisal"], division: "Barishal", lat: 22.7, lng: 90.37 },
   { name: "Bhola", division: "Barishal", lat: 22.69, lng: 90.64 },
   { name: "Patuakhali", division: "Barishal", lat: 22.36, lng: 90.33 },
   { name: "Pirojpur", division: "Barishal", lat: 22.58, lng: 89.97 },
@@ -170,8 +172,92 @@ export const AREAS: Place[] = [
   { name: "Police Line", district: "Cumilla", division: "Chattogram", lat: 23.4619, lng: 91.1772, kind: "area" }
 ];
 
+export const EXTRA_AREAS: Place[] = [
+  { name: "Kalabagan", aliases: ["Kolabagan", "Kalabagan Bus Stand"], district: "Dhaka", division: "Dhaka", lat: 23.7481, lng: 90.3812, kind: "area" },
+  { name: "Science Lab", aliases: ["Science Laboratory"], district: "Dhaka", division: "Dhaka", lat: 23.7386, lng: 90.3831, kind: "area" },
+  { name: "Shahbagh", aliases: ["Dhaka University", "DU"], district: "Dhaka", division: "Dhaka", lat: 23.7381, lng: 90.3950, kind: "area" },
+  { name: "New Market", aliases: ["Nilkhet"], district: "Dhaka", division: "Dhaka", lat: 23.7332, lng: 90.3841, kind: "area" },
+  { name: "Sayedabad", aliases: ["Saydabad Bus Terminal"], district: "Dhaka", division: "Dhaka", lat: 23.7101, lng: 90.4286, kind: "area" },
+  { name: "Arambagh", aliases: ["Arambag"], district: "Dhaka", division: "Dhaka", lat: 23.7316, lng: 90.4193, kind: "area" },
+  { name: "Hazrat Shahjalal Airport", aliases: ["Dhaka Airport", "Airport"], district: "Dhaka", division: "Dhaka", lat: 23.8433, lng: 90.3978, kind: "area" },
+  { name: "Kuril", aliases: ["Kuril Bishwa Road", "Kuril Bishwaroad"], district: "Dhaka", division: "Dhaka", lat: 23.8214, lng: 90.4221, kind: "area" },
+  { name: "Rampura", district: "Dhaka", division: "Dhaka", lat: 23.7637, lng: 90.4255, kind: "area" },
+  { name: "Paltan", aliases: ["Purana Paltan"], district: "Dhaka", division: "Dhaka", lat: 23.7346, lng: 90.4124, kind: "area" },
+  { name: "Wari", district: "Dhaka", division: "Dhaka", lat: 23.7118, lng: 90.4161, kind: "area" },
+  { name: "Sadarghat", aliases: ["Old Dhaka", "Launch Terminal"], district: "Dhaka", division: "Dhaka", lat: 23.7104, lng: 90.4064, kind: "area" },
+  { name: "Basabo", district: "Dhaka", division: "Dhaka", lat: 23.7389, lng: 90.4351, kind: "area" },
+  { name: "Tejgaon", district: "Dhaka", division: "Dhaka", lat: 23.7638, lng: 90.3915, kind: "area" },
+  { name: "Nabinagar", aliases: ["Savar Nabinagar"], district: "Dhaka", division: "Dhaka", lat: 23.8893, lng: 90.2533, kind: "area" },
+  { name: "Board Bazar", district: "Gazipur", division: "Dhaka", lat: 23.9616, lng: 90.3800, kind: "area" },
+  { name: "Gazipur Chowrasta", aliases: ["Chowrasta"], district: "Gazipur", division: "Dhaka", lat: 23.9999, lng: 90.4203, kind: "area" },
+  { name: "Mawna", aliases: ["Mawna Chowrasta"], district: "Gazipur", division: "Dhaka", lat: 24.2110, lng: 90.4217, kind: "area" },
+  { name: "Kaliakair", district: "Gazipur", division: "Dhaka", lat: 24.0710, lng: 90.2158, kind: "area" },
+  { name: "Joydebpur", district: "Gazipur", division: "Dhaka", lat: 23.9990, lng: 90.4207, kind: "area" },
+  { name: "Chashara", district: "Narayanganj", division: "Dhaka", lat: 23.6234, lng: 90.4996, kind: "area" },
+  { name: "Signboard", district: "Narayanganj", division: "Dhaka", lat: 23.6824, lng: 90.4925, kind: "area" },
+  { name: "Kanchpur", district: "Narayanganj", division: "Dhaka", lat: 23.7041, lng: 90.5226, kind: "area" },
+  { name: "Mawa", aliases: ["Mawa Ghat", "Padma Bridge North"], district: "Munshiganj", division: "Dhaka", lat: 23.4697, lng: 90.2561, kind: "area" },
+  { name: "Shimulia", aliases: ["Shimulia Ghat"], district: "Munshiganj", division: "Dhaka", lat: 23.4637, lng: 90.2360, kind: "area" },
+  { name: "Elenga", district: "Tangail", division: "Dhaka", lat: 24.3384, lng: 89.9211, kind: "area" },
+  { name: "Gorai", district: "Tangail", division: "Dhaka", lat: 24.0835, lng: 90.0980, kind: "area" },
+  { name: "Bhairab", district: "Kishoreganj", division: "Dhaka", lat: 24.0524, lng: 90.9764, kind: "area" },
+  { name: "AK Khan", aliases: ["A K Khan"], district: "Chattogram", division: "Chattogram", lat: 22.3679, lng: 91.7836, kind: "area" },
+  { name: "Oxygen", aliases: ["Oxygen Mor"], district: "Chattogram", division: "Chattogram", lat: 22.3946, lng: 91.8234, kind: "area" },
+  { name: "Patenga", district: "Chattogram", division: "Chattogram", lat: 22.2359, lng: 91.7918, kind: "area" },
+  { name: "Chattogram Railway Station", aliases: ["Chittagong Railway Station"], district: "Chattogram", division: "Chattogram", lat: 22.3375, lng: 91.8316, kind: "area" },
+  { name: "Mohipal", district: "Feni", division: "Chattogram", lat: 23.0238, lng: 91.3909, kind: "area" },
+  { name: "Daudkandi", district: "Cumilla", division: "Chattogram", lat: 23.5305, lng: 90.7242, kind: "area" },
+  { name: "Kolatoli", aliases: ["Kolatoli Beach"], district: "Cox's Bazar", division: "Chattogram", lat: 21.4214, lng: 91.9833, kind: "area" },
+  { name: "Teknaf", district: "Cox's Bazar", division: "Chattogram", lat: 20.8624, lng: 92.3058, kind: "area" },
+  { name: "Kadamtali", aliases: ["Sylhet Bus Terminal"], district: "Sylhet", division: "Sylhet", lat: 24.8790, lng: 91.8728, kind: "area" },
+  { name: "Osmani Airport", aliases: ["Sylhet Airport"], district: "Sylhet", division: "Sylhet", lat: 24.9632, lng: 91.8679, kind: "area" },
+  { name: "Royal More", district: "Khulna", division: "Khulna", lat: 22.8172, lng: 89.5530, kind: "area" },
+  { name: "Khulna Railway Station", district: "Khulna", division: "Khulna", lat: 22.8169, lng: 89.5627, kind: "area" },
+  { name: "Railgate", district: "Rajshahi", division: "Rajshahi", lat: 24.3747, lng: 88.5981, kind: "area" },
+  { name: "Rajshahi Railway Station", district: "Rajshahi", division: "Rajshahi", lat: 24.3741, lng: 88.6041, kind: "area" },
+  { name: "Launch Ghat", aliases: ["Barishal Launch Terminal"], district: "Barishal", division: "Barishal", lat: 22.6998, lng: 90.3718, kind: "area" },
+  { name: "Medical More", aliases: ["Rangpur Medical"], district: "Rangpur", division: "Rangpur", lat: 25.7449, lng: 89.2516, kind: "area" },
+  { name: "Bridge Mor", aliases: ["Mymensingh Bridge"], district: "Mymensingh", division: "Mymensingh", lat: 24.7358, lng: 90.4234, kind: "area" }
+];
+
+const exactAreaKey = (place: Place) =>
+  `${place.district ?? place.name}:${place.name}`.toLowerCase();
+
+const EXACT_AREAS: Place[] = [...AREAS, ...EXTRA_AREAS];
+const EXACT_AREA_KEYS = new Set(EXACT_AREAS.map(exactAreaKey));
+
+function adminAreaAliases(name: string): string[] {
+  const aliases = [`${name} Upazila`, `${name} Thana`];
+  if (name.endsWith("Sadar")) {
+    aliases.push(name.replace(/ Sadar$/, " Town"));
+  }
+  if (name === "Nesarabad") aliases.push("Swarupkati", "Nesarabad Swarupkati");
+  return aliases;
+}
+
+export const ADMIN_AREAS: Place[] = Object.entries(ADMIN_AREAS_BY_DISTRICT).flatMap(
+  ([districtName, names]) => {
+    const district = DISTRICTS.find((place) => place.name === districtName);
+    if (!district) return [];
+    return names.map((name) => ({
+      name,
+      district: district.name,
+      division: district.division,
+      lat: district.lat,
+      lng: district.lng,
+      kind: "area" as const,
+      aliases: adminAreaAliases(name)
+    }));
+  }
+);
+
+export const ALL_AREAS: Place[] = [
+  ...EXACT_AREAS,
+  ...ADMIN_AREAS.filter((place) => !EXACT_AREA_KEYS.has(exactAreaKey(place)))
+];
+
 export function areasOf(district: string): Place[] {
-  return AREAS.filter((a) => a.district === district);
+  return EXACT_AREAS.filter((a) => a.district === district);
 }
 
 // Division headquarters shown as reference dots on the map.
@@ -186,16 +272,93 @@ export const MAJOR_CITIES = [
   "Mymensingh"
 ].map((name) => DISTRICTS.find((d) => d.name === name)!);
 
-const ALL_PLACES: Place[] = [...DISTRICTS.map((d) => ({ ...d, kind: "district" as const })), ...AREAS];
+const ALL_PLACES: Place[] = [
+  ...DISTRICTS.map((d) => ({ ...d, kind: "district" as const })),
+  ...ALL_AREAS
+];
 
-export function searchPlaces(query: string, limit = 7): Place[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  const starts = ALL_PLACES.filter((d) => d.name.toLowerCase().startsWith(q));
-  const contains = ALL_PLACES.filter(
-    (d) => !d.name.toLowerCase().startsWith(q) && d.name.toLowerCase().includes(q)
+export interface SearchOrigin {
+  lat: number;
+  lng: number;
+}
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/['.]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function searchTerms(place: Place): string[] {
+  return [
+    place.name,
+    place.district ?? "",
+    place.division,
+    ...(place.aliases ?? [])
+  ]
+    .map(normalize)
+    .filter(Boolean);
+}
+
+export function inferDistrictFromText(text: string): Place | undefined {
+  const query = normalize(text);
+  if (!query) return undefined;
+  return DISTRICTS.find((district) =>
+    searchTerms(district).some((term) => query.includes(term))
   );
-  return [...starts, ...contains].slice(0, limit);
+}
+
+function matchRank(place: Place, query: string): number | null {
+  const name = normalize(place.name);
+  const terms = searchTerms(place);
+  if (name === query) return 0;
+  if (name.startsWith(query)) return 1;
+  if (terms.some((term) => term === query)) return 2;
+  if (terms.some((term) => term.startsWith(query))) return 3;
+  if (name.includes(query)) return 4;
+  if (terms.some((term) => term.includes(query))) return 5;
+  return null;
+}
+
+function distanceKm(place: Place, origin?: SearchOrigin): number {
+  return origin ? haversineKm(origin, place) : 0;
+}
+
+export function searchPlaces(query: string, limit = 8, origin?: SearchOrigin): Place[] {
+  const q = normalize(query);
+  if (!q) {
+    return origin
+      ? nearestPlaces(origin.lat, origin.lng, limit).map(({ place }) => place)
+      : [
+          "Dhaka",
+          "Chattogram",
+          "Sylhet",
+          "Khulna",
+          "Rajshahi",
+          "Barishal",
+          "Rangpur",
+          "Mymensingh"
+        ]
+          .map((name) => DISTRICTS.find((d) => d.name === name)!)
+          .slice(0, limit);
+  }
+
+  return ALL_PLACES.map((place) => {
+    const rank = matchRank(place, q);
+    if (rank === null) return null;
+    return { place, rank, km: distanceKm(place, origin) };
+  })
+    .filter((item): item is { place: Place; rank: number; km: number } => Boolean(item))
+    .sort((a, b) => a.rank - b.rank || a.km - b.km || a.place.name.localeCompare(b.place.name))
+    .map(({ place }) => place)
+    .slice(0, limit);
+}
+
+export function nearestPlaces(lat: number, lng: number, limit = 5): { place: Place; km: number }[] {
+  return ALL_PLACES.map((place) => ({ place, km: haversineKm({ lat, lng }, place) }))
+    .sort((a, b) => a.km - b.km)
+    .slice(0, limit);
 }
 
 export function findNearest(lat: number, lng: number): { place: Place; km: number } {
