@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
-import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
+import { recentSearches, rememberSearch } from "../lib/store";
 import { findNearest } from "../data/gazetteer";
 import { BD_BOUNDS } from "../lib/geo";
 import { useTranslation } from "../i18n";
@@ -22,7 +22,6 @@ export function HomePage() {
   const [seats, setSeats] = useState(1);
 
   const dateRef = useRef<HTMLInputElement>(null);
-  const upcoming = useMemo(() => listUpcomingRides().slice(0, 8), []);
 
   // Ask for location up front and start the search from the nearest area.
   useEffect(() => {

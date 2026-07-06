@@ -1493,3 +1493,81 @@ main {
   font-size: 0.9rem;
   opacity: 0.7;
 }
+
+/* --- v3: Poparide parity + gamification -------------------------- */
+
+.chip--flash {
+  background: rgba(206, 162, 79, 0.2);
+  color: #7c5c1c;
+}
+
+.stop-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.stop-row .field {
+  flex: 1;
+}
+
+.request-note {
+  display: block;
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.rate-release {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.stars__btn {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: rgba(23, 63, 57, 0.25);
+  transition: color 120ms ease, transform 120ms ease;
+}
+
+.stars__btn:hover {
+  transform: scale(1.15);
+}
+
+.stars__btn--lit {
+  color: var(--gold);
+}
+
+.level-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.level-name {
+  font-family: "Fraunces", Georgia, serif;
+  font-size: 1.5rem;
+}
+
+.level-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(23, 63, 57, 0.1);
+  overflow: hidden;
+}
+
+.level-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--coral), var(--gold));
+  transition: width 400ms ease;
+}

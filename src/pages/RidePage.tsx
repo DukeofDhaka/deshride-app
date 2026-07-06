@@ -11,6 +11,7 @@ import {
   saveProfile,
   seatsLeft
 } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 function formatDeparture(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
@@ -27,10 +28,12 @@ export function RidePage() {
   const [params] = useSearchParams();
   const justPosted = params.get("posted") === "1";
 
+  const { t } = useTranslation();
   const [refresh, setRefresh] = useState(0);
   const [seats, setSeats] = useState(1);
   const [payMethod, setPayMethod] = useState<PaymentMethodId>("bkash");
   const [guestName, setGuestName] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const ride = rideId ? getRide(rideId) : undefined;
@@ -71,7 +74,7 @@ export function RidePage() {
     if (!profile.name && guestName.trim()) {
       saveProfile({ ...profile, name: guestName.trim() });
     }
-    requestBooking(ride!.id, seats, payMethod);
+    requestBooking(ride!.id, seats, payMethod, message);
     setRefresh((n) => n + 1);
   }
 
@@ -91,7 +94,16 @@ export function RidePage() {
           </h1>
           <p className="hero__lead">
             {formatDeparture(ride.departure)} · ~{km} km · {estimateDuration(km)}
+            {ride.stops && ride.stops.length > 0 && (
+              <> · {t('via')} {ride.stops.map((s) => s.name).join(" → ")}</>
+            )}
           </p>
+          {ride.instantBook && (
+            <p>
+              <span className="chip chip--flash">{t('instantBook')}</span>{" "}
+              <span className="detail-note">{t('instantBookHint')}</span>
+            </p>
+          )}
         </div>
         <div className="detail-hero__stats">
           <div>
@@ -257,6 +269,19 @@ export function RidePage() {
                 </select>
               </div>
 
+              <div className="field">
+                <label className="field__label" htmlFor="req-msg">
+                  {t('msgToDriver')}
+                </label>
+                <textarea
+                  id="req-msg"
+                  className="field__input field__input--area"
+                  value={message}
+                  placeholder={t('msgPlaceholder')}
+                  onChange={(e) => setMessage(e.target.value)}
+                />
+              </div>
+
               <div className="pay-options" role="radiogroup" aria-label="Payment method">
                 {PAYMENT_METHODS.map((method) => (
                   <button
@@ -276,7 +301,7 @@ export function RidePage() {
               {error && <p className="form-error">{error}</p>}
 
               <button className="primary-button primary-button--full" type="submit">
-                বুকিং রিকোয়েস্ট পাঠান
+                {ride.instantBook ? t('bookNow') : t('requestToBook')}
               </button>
               <p className="detail-note">
                 ড্রাইভার গ্রহণ করার আগে কোনো টাকা কাটা হবে না। এরপর ভাড়াটি দেশরাইডের

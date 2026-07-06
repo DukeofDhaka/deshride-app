@@ -26,6 +26,8 @@ export interface Ride {
   driver: DriverInfo;
   from: Spot;
   to: Spot;
+  stops?: Spot[];
+  instantBook?: boolean;
   departure: string;
   seatsTotal: number;
   pricePerSeat: number;
@@ -54,6 +56,8 @@ export interface Booking {
   payMethod: PaymentMethodId;
   status: BookingStatus;
   payStatus: PayStatus;
+  message?: string;
+  rating?: number;
   releaseAt?: string;
   refundPct?: number;
   createdAt: string;

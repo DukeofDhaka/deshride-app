@@ -4,6 +4,7 @@ import type { LuggageSize, Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
 import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
 import { createRide, getProfile, saveProfile, saveRideDraft } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 const RULE_OPTIONS = ["ধূমপান নিষেধ", "হাইওয়েতে এসি", "গান চলবে", "পেছনে সর্বোচ্চ ৩ জন", "নারীদের সামনের সিট"];
 
@@ -16,9 +17,14 @@ function tomorrow(): string {
 export function PostRidePage() {
   const navigate = useNavigate();
   const profile = getProfile();
+  const { t } = useTranslation();
 
   const [from, setFrom] = useState<Spot | null>(null);
   const [to, setTo] = useState<Spot | null>(null);
+  const [stops, setStops] = useState<(Spot | null)[]>([]);
+  const [withReturn, setWithReturn] = useState(false);
+  const [returnDate, setReturnDate] = useState("");
+  const [returnTime, setReturnTime] = useState("16:00");
   const [date, setDate] = useState(tomorrow());
   const [time, setTime] = useState("07:30");
   const [seatsTotal, setSeatsTotal] = useState(3);
@@ -70,9 +76,11 @@ export function PostRidePage() {
     }
 
     const departure = new Date(`${date}T${time}:00`).toISOString();
+    const cleanStops = stops.filter((s): s is Spot => Boolean(s));
     const rideInput = {
       from,
       to,
+      stops: cleanStops.length > 0 ? cleanStops : undefined,
       departure,
       seatsTotal,
       pricePerSeat: Number(effectivePrice),
@@ -90,6 +98,15 @@ export function PostRidePage() {
     }
 
     const ride = createRide(rideInput);
+    if (withReturn && returnDate) {
+      createRide({
+        ...rideInput,
+        from: to,
+        to: from,
+        stops: cleanStops.length > 0 ? [...cleanStops].reverse() : undefined,
+        departure: new Date(`${returnDate}T${returnTime}:00`).toISOString()
+      });
+    }
     navigate(`/ride/${ride.id}?posted=1`);
   }
 
@@ -109,7 +126,6 @@ export function PostRidePage() {
             label="পিকআপ"
             value={from}
             onChange={setFrom}
-            allowMapPick
             withNote
             notePlaceholder="ঠিক কোথা থেকে? যেমন: কলাবাগান বাসস্ট্যান্ড, গেট ২"
           />
@@ -117,10 +133,39 @@ export function PostRidePage() {
             label="ড্রপ-অফ"
             value={to}
             onChange={setTo}
-            allowMapPick
             withNote
             notePlaceholder="ঠিক কোথায় নামবেন? যেমন: জিইসি মোড়"
           />
+
+          <div className="field">
+            <span className="field__label">{t('stopovers')}</span>
+            {stops.map((stop, i) => (
+              <div key={i} className="stop-row">
+                <LocationPicker
+                  label={`${i + 1}.`}
+                  value={stop}
+                  onChange={(s) => setStops((cur) => cur.map((c, j) => (j === i ? s : c)))}
+                />
+                <button
+                  type="button"
+                  className="ghost-button ghost-button--danger"
+                  onClick={() => setStops((cur) => cur.filter((_, j) => j !== i))}
+                >
+                  {t('removeStop')}
+                </button>
+              </div>
+            ))}
+            {stops.length < 3 && (
+              <button
+                type="button"
+                className="pill pill--toggle"
+                onClick={() => setStops((cur) => [...cur, null])}
+              >
+                {t('addStop')}
+              </button>
+            )}
+            <p className="field__hint">{t('stopHint')}</p>
+          </div>
 
           <div className="search-card__row">
             <div className="field">
@@ -266,6 +311,45 @@ export function PostRidePage() {
                 placeholder="রাইডে দেখানো হবে"
                 onChange={(e) => setDriverName(e.target.value)}
               />
+            </div>
+          )}
+
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={withReturn}
+              onChange={(e) => setWithReturn(e.target.checked)}
+            />
+            <span>{t('returnTripLabel')}</span>
+          </label>
+
+          {withReturn && (
+            <div className="search-card__row">
+              <div className="field">
+                <label className="field__label" htmlFor="post-return-date">
+                  {t('returnDate')}
+                </label>
+                <input
+                  id="post-return-date"
+                  className="field__input"
+                  type="date"
+                  value={returnDate}
+                  min={date}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="post-return-time">
+                  {t('returnTime')}
+                </label>
+                <input
+                  id="post-return-time"
+                  className="field__input"
+                  type="time"
+                  value={returnTime}
+                  onChange={(e) => setReturnTime(e.target.value)}
+                />
+              </div>
             </div>
           )}
 

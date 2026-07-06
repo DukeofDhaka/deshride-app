@@ -6,7 +6,7 @@ import {
   cancelMyBooking,
   cancelRide,
   completeRide,
-  confirmRelease,
+  confirmReleaseAndRate,
   getRide,
   myBookings,
   myRides,
@@ -15,6 +15,7 @@ import {
   seatsLeft,
   updateBookingStatus
 } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 function formatDeparture(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", {
@@ -26,7 +27,29 @@ function formatDeparture(iso: string): string {
   });
 }
 
+function StarPicker({ onRate }: { onRate: (stars: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <span className="stars" role="radiogroup" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          className={`stars__btn${hover >= n ? " stars__btn--lit" : ""}`}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => onRate(n)}
+          aria-label={`${n}`}
+        >
+          ★
+        </button>
+      ))}
+    </span>
+  );
+}
+
 export function MyRidesPage() {
+  const { t } = useTranslation();
   const [, bump] = useState(0);
   const refresh = () => bump((n) => n + 1);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +174,11 @@ export function MyRidesPage() {
                           <span>
                             <strong>{b.guestName}</strong> চান {b.seats}টি সিট ·
                             {" "}{b.payMethod}-এ দেবেন
+                            {b.message && (
+                              <em className="request-note">
+                                {t('passengerNote')} “{b.message}”
+                              </em>
+                            )}
                           </span>
                           <span className="request-row__actions">
                             <button
@@ -237,16 +265,15 @@ export function MyRidesPage() {
                     রাইড দেখুন
                   </Link>
                   {booking.payStatus === "releasing" && (
-                    <button
-                      type="button"
-                      className="ghost-button ghost-button--good"
-                      onClick={() => {
-                        confirmRelease(booking.id);
-                        refresh();
-                      }}
-                    >
-                      সব ঠিক ছিল — এখনই রিলিজ করুন
-                    </button>
+                    <span className="rate-release">
+                      <span className="detail-note">{t('confirmAndRate')}</span>
+                      <StarPicker
+                        onRate={(stars) => {
+                          confirmReleaseAndRate(booking.id, stars);
+                          refresh();
+                        }}
+                      />
+                    </span>
                   )}
                   {(booking.status === "pending" ||
                     (booking.status === "accepted" && booking.payStatus === "held")) && (
