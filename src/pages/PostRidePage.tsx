@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LuggageSize, Spot } from "../types";
-import { BDMap } from "../components/BDMap";
 import { LocationPicker } from "../components/LocationPicker";
 import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
 import { createRide, getProfile, saveProfile, saveRideDraft } from "../lib/store";
@@ -276,15 +275,6 @@ export function PostRidePage() {
             রাইড পোস্ট করুন
           </button>
         </form>
-
-        <aside className="post-map">
-          <BDMap from={from} to={to} />
-          <p className="map-caption">
-            {from && to
-              ? `${from.name} → ${to.name}`
-              : "জায়গা বাছলেই রুটটি এখানে দেখা যাবে।"}
-          </p>
-        </aside>
       </div>
     </section>
   );

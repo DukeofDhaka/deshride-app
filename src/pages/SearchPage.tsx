@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BDMap } from "../components/BDMap";
 import { RideCard } from "../components/RideCard";
 import { searchRides } from "../lib/store";
+import { useTranslation } from "../i18n";
 
 export function SearchPage() {
   const [params] = useSearchParams();
+  const { t, language } = useTranslation();
   const fromDistrict = params.get("from") ?? undefined;
   const toDistrict = params.get("to") ?? undefined;
   const date = params.get("date") ?? undefined;
@@ -24,7 +25,7 @@ export function SearchPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = results.find((r) => r.id === activeId) ?? results[0];
 
-  const title = [fromDistrict ?? "যেকোনো জায়গা", toDistrict ?? "যেকোনো জায়গা"].join(" → ");
+  const title = [fromDistrict ?? t('anywhere'), toDistrict ?? t('anywhere')].join(" → ");
 
   return (
     <section className="page page--search">
@@ -32,10 +33,10 @@ export function SearchPage() {
         <h1>{title}</h1>
         <p>
           {exact.length > 0
-            ? `${exact.length}টি রাইড${date ? ` — ${date}` : ""}`
+            ? `${exact.length} ${t('ridesCount')}${date ? ` — ${date}` : ""}`
             : nearby.length > 0
-              ? `${date ?? "ঐ দিনে"} কিছু নেই — একই রুটে অন্য দিনের রাইডগুলো দেখুন।`
-              : "এই রুটে এখনো কোনো রাইড নেই।"}
+              ? `${date ?? ""} ${t('nothingOnThatDay')}`
+              : t('noRidesOnRoute')}
         </p>
       </div>
 
@@ -47,28 +48,14 @@ export function SearchPage() {
 
           {results.length === 0 && (
             <div className="empty-state">
-              <h2>এই রুটে প্রথম হোন।</h2>
-              <p>
-                এই রুটে গাড়ি চালান? খালি সিটগুলো পোস্ট করুন — যাত্রীরা আপনাকে খুঁজে
-                নেবে।
-              </p>
+              <h2>{t('beTheFirst')}</h2>
+              <p>{t('postSeatsPrompt')}</p>
               <Link className="primary-button" to="/post">
-                রাইড দিন
+                {t('postRide')}
               </Link>
             </div>
           )}
         </div>
-
-        {results.length > 0 && (
-          <aside className="results-map">
-            <BDMap from={active?.from} to={active?.to} showCities={false} />
-            {active && (
-              <p className="map-caption">
-                {active.from.name} → {active.to.name}
-              </p>
-            )}
-          </aside>
-        )}
       </div>
     </section>
   );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Spot } from "../types";
 import { areasOf, findNearest, searchPlaces } from "../data/gazetteer";
-import { BDMap } from "./BDMap";
+import { useTranslation } from "../i18n";
 
 interface LocationPickerProps {
   label: string;
@@ -9,8 +9,6 @@ interface LocationPickerProps {
   onChange: (spot: Spot | null) => void;
   allowMapPick?: boolean;
   withNote?: boolean;
-  notePlaceholder?: string;
-  placeholder?: string;
 }
 
 export function LocationPicker({
@@ -19,9 +17,11 @@ export function LocationPicker({
   onChange,
   allowMapPick = false,
   withNote = false,
-  notePlaceholder = "ঠিক কোথায় দেখা হবে? যেমন: কলাবাগান বাসস্ট্যান্ড, গেট ২",
-  placeholder = "জেলা বা এলাকা"
 }: LocationPickerProps) {
+  const { t } = useTranslation();
+  const notePlaceholder = t('meetWhere');
+  const placeholder = t('districtOrArea');
+
   const [query, setQuery] = useState("");
   const [mapOpen, setMapOpen] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -31,7 +31,7 @@ export function LocationPicker({
 
   function handlePick(lat: number, lng: number) {
     const { place, km } = findNearest(lat, lng);
-    const name = km <= 12 ? place.name : `${place.name}-এর কাছে`;
+    const name = km <= 12 ? place.name : `${place.name} ${t('near')}`;
     onChange({ name, district: place.name, lat, lng, note: value?.note });
     setQuery("");
     setMapOpen(false);
@@ -52,15 +52,6 @@ export function LocationPicker({
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
         />
-        {allowMapPick && (
-          <button
-            type="button"
-            className="field__map-toggle"
-            onClick={() => setMapOpen((open) => !open)}
-          >
-            {mapOpen ? "ম্যাপ বন্ধ" : "ম্যাপে বাছুন"}
-          </button>
-        )}
       </div>
 
       {showList && results.length > 0 && (
@@ -83,8 +74,8 @@ export function LocationPicker({
                 <strong>{place.name}</strong>
                 <span>
                   {place.kind === "area"
-                    ? `${place.district} · এলাকা`
-                    : `${place.division} বিভাগ`}
+                    ? `${place.district} · ${t('areaLabel')}`
+                    : `${place.division} ${t('divisionLabel')}`}
                 </span>
               </button>
             </li>
@@ -96,7 +87,7 @@ export function LocationPicker({
         value.name === value.district &&
         areasOf(value.district).length > 0 && (
           <div className="area-chips">
-            <span className="area-chips__label">{value.district}-এর ভেতরে বেছে নিন:</span>
+            <span className="area-chips__label">{value.district} {t('chooseInside')}</span>
             <div className="rule-grid">
               {areasOf(value.district).map((area) => (
                 <button
@@ -119,13 +110,6 @@ export function LocationPicker({
             </div>
           </div>
         )}
-
-      {mapOpen && (
-        <div className="field__map">
-          <p className="field__hint">ম্যাপে যেকোনো জায়গায় ট্যাপ করে পিন বসান।</p>
-          <BDMap from={value} onPick={handlePick} />
-        </div>
-      )}
 
       {withNote && value && (
         <input

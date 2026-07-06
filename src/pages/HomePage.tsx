@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
-import { BDMap } from "../components/BDMap";
 import { LocationPicker } from "../components/LocationPicker";
 import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
 import { findNearest } from "../data/gazetteer";
 import { BD_BOUNDS } from "../lib/geo";
+import { useTranslation } from "../i18n";
 
 function tomorrow(): string {
   const d = new Date();
@@ -15,6 +15,7 @@ function tomorrow(): string {
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [from, setFrom] = useState<Spot | null>(null);
   const [to, setTo] = useState<Spot | null>(null);
   const [date, setDate] = useState(tomorrow());
@@ -76,22 +77,21 @@ export function HomePage() {
 
   return (
     <section className="page">
-      <div className="hero hero--split">
+      <div className="hero">
         <div className="hero__copy">
-          <span className="hero__label">ইন্টারসিটি কারপুলিং · সমগ্র বাংলাদেশ</span>
-          <h1>আর নয় খালি সিট।</h1>
+          <span className="hero__label">{t('heroLabel')}</span>
+          <h1>{t('heroTitle')}</h1>
           <p className="hero__lead">
-            ড্রাইভার যাচ্ছেনই — খালি সিটগুলো পাচ্ছেন আপনি। বাসের ভাড়ায়, দরজা থেকে
-            দরজায়। <span className="hero__lead-en">Share the ride, share the cost.</span>
+            {t('heroLead1')} <span className="hero__lead-en">{t('heroLead2')}</span>
           </p>
 
           <form className="search-card" onSubmit={handleSearch}>
-            <LocationPicker label="কোথা থেকে" value={from} onChange={setFrom} />
-            <LocationPicker label="কোথায় যাবেন" value={to} onChange={setTo} />
+            <LocationPicker label={t('fromWhere')} value={from} onChange={setFrom} />
+            <LocationPicker label={t('toWhere')} value={to} onChange={setTo} />
             <div className="search-card__row">
               <div className="field">
                 <label className="field__label" htmlFor="search-date">
-                  যাত্রার তারিখ
+                  {t('dateOfJourney')}
                 </label>
                 <input
                   id="search-date"
@@ -107,7 +107,7 @@ export function HomePage() {
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="search-seats">
-                  সিট
+                  {t('seats')}
                 </label>
                 <select
                   id="search-seats"
@@ -124,13 +124,13 @@ export function HomePage() {
               </div>
             </div>
             <button className="primary-button primary-button--full" type="submit">
-              রাইড খুঁজুন
+              {t('findRide')}
             </button>
           </form>
 
           {previous.length > 0 && (
             <div className="recent-searches">
-              <span className="area-chips__label">আগের খোঁজ</span>
+              <span className="area-chips__label">{t('previousSearches')}</span>
               <div className="rule-grid">
                 {previous.map((s, i) => (
                   <button
@@ -139,7 +139,7 @@ export function HomePage() {
                     className="pill pill--toggle"
                     onClick={() => runSearch(s.from, s.to, s.date)}
                   >
-                    {(s.from ?? "যেকোনো জায়গা") + " → " + (s.to ?? "যেকোনো জায়গা")}
+                    {(s.from ?? t('anywhere')) + " → " + (s.to ?? t('anywhere'))}
                   </button>
                 ))}
               </div>
@@ -147,16 +147,11 @@ export function HomePage() {
           )}
 
           <p className="hero__post-cta">
-            গাড়িতে খালি সিট আছে?{" "}
+            {t('postRidePrompt')}{" "}
             <Link className="secondary-link" to="/post">
-              রাইড পোস্ট করুন →
+              {t('postRideLink')}
             </Link>
           </p>
-        </div>
-
-        <div className="hero__map">
-          <BDMap from={from} to={to} pins={upcoming.flatMap((r) => [r.from, r.to])} />
-          <p className="map-caption">আসন্ন রাইডগুলোর পিকআপ ও ড্রপ-অফ পয়েন্ট।</p>
         </div>
       </div>
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { BDMap } from "../components/BDMap";
 import { PAYMENT_METHODS, getPaymentMethod, type PaymentMethodId } from "../data/paymentMethods";
 import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
 import {
@@ -112,8 +111,6 @@ export function RidePage() {
 
       <div className="detail-grid">
         <div className="detail-main">
-          <BDMap from={ride.from} to={ride.to} />
-
           <div className="detail-panel">
             <h2>পিকআপ ও ড্রপ-অফ</h2>
             <ul className="panel-list">

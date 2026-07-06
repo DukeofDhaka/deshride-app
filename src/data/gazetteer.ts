@@ -104,20 +104,70 @@ export const AREAS: Place[] = [
   { name: "Jatrabari", district: "Dhaka", division: "Dhaka", lat: 23.7104, lng: 90.4349, kind: "area" },
   { name: "Gabtoli", district: "Dhaka", division: "Dhaka", lat: 23.7831, lng: 90.3455, kind: "area" },
   { name: "Savar", district: "Dhaka", division: "Dhaka", lat: 23.8583, lng: 90.2667, kind: "area" },
+  { name: "Malibagh", district: "Dhaka", division: "Dhaka", lat: 23.7490, lng: 90.4168, kind: "area" },
+  { name: "Moghbazar", district: "Dhaka", division: "Dhaka", lat: 23.7494, lng: 90.4046, kind: "area" },
+  { name: "Shyamoli", district: "Dhaka", division: "Dhaka", lat: 23.7725, lng: 90.3666, kind: "area" },
+  { name: "Kalyanpur", district: "Dhaka", division: "Dhaka", lat: 23.7813, lng: 90.3621, kind: "area" },
+  { name: "Keraniganj", district: "Dhaka", division: "Dhaka", lat: 23.6896, lng: 90.3854, kind: "area" },
+  { name: "Demra", district: "Dhaka", division: "Dhaka", lat: 23.7224, lng: 90.4636, kind: "area" },
+  { name: "Tongi", district: "Gazipur", division: "Dhaka", lat: 23.8864, lng: 90.3995, kind: "area" },
   // Chattogram
   { name: "GEC Circle", district: "Chattogram", division: "Chattogram", lat: 22.3595, lng: 91.8213, kind: "area" },
   { name: "Agrabad", district: "Chattogram", division: "Chattogram", lat: 22.3253, lng: 91.8131, kind: "area" },
   { name: "Muradpur", district: "Chattogram", division: "Chattogram", lat: 22.3684, lng: 91.8397, kind: "area" },
   { name: "Halishahar", district: "Chattogram", division: "Chattogram", lat: 22.3223, lng: 91.7719, kind: "area" },
   { name: "Pahartali", district: "Chattogram", division: "Chattogram", lat: 22.3646, lng: 91.7802, kind: "area" },
+  { name: "New Market", district: "Chattogram", division: "Chattogram", lat: 22.3333, lng: 91.8333, kind: "area" },
+  { name: "Chawkbazar", district: "Chattogram", division: "Chattogram", lat: 22.3569, lng: 91.8361, kind: "area" },
+  { name: "Bahaddarhat", district: "Chattogram", division: "Chattogram", lat: 22.3789, lng: 91.8496, kind: "area" },
+  { name: "Kotwali", district: "Chattogram", division: "Chattogram", lat: 22.3364, lng: 91.8415, kind: "area" },
   // Sylhet
   { name: "Amberkhana", district: "Sylhet", division: "Sylhet", lat: 24.9057, lng: 91.8672, kind: "area" },
   { name: "Zindabazar", district: "Sylhet", division: "Sylhet", lat: 24.8951, lng: 91.8687, kind: "area" },
+  { name: "Bandar Bazar", district: "Sylhet", division: "Sylhet", lat: 24.8911, lng: 91.8683, kind: "area" },
+  { name: "Shibganj", district: "Sylhet", division: "Sylhet", lat: 24.9038, lng: 91.8845, kind: "area" },
+  { name: "Upashahar", district: "Sylhet", division: "Sylhet", lat: 24.8878, lng: 91.8885, kind: "area" },
+  { name: "Subidbazar", district: "Sylhet", division: "Sylhet", lat: 24.9031, lng: 91.8546, kind: "area" },
   // Khulna
   { name: "Sonadanga", district: "Khulna", division: "Khulna", lat: 22.8202, lng: 89.5403, kind: "area" },
   { name: "Shibbari", district: "Khulna", division: "Khulna", lat: 22.8265, lng: 89.5532, kind: "area" },
+  { name: "Dakbangla", district: "Khulna", division: "Khulna", lat: 22.8155, lng: 89.5651, kind: "area" },
+  { name: "Boyra", district: "Khulna", division: "Khulna", lat: 22.8364, lng: 89.5398, kind: "area" },
+  { name: "Khalishpur", district: "Khulna", division: "Khulna", lat: 22.8465, lng: 89.5376, kind: "area" },
+  { name: "Nirala", district: "Khulna", division: "Khulna", lat: 22.8091, lng: 89.5484, kind: "area" },
   // Rajshahi
-  { name: "Shaheb Bazar", district: "Rajshahi", division: "Rajshahi", lat: 24.3658, lng: 88.5983, kind: "area" }
+  { name: "Shaheb Bazar", district: "Rajshahi", division: "Rajshahi", lat: 24.3658, lng: 88.5983, kind: "area" },
+  { name: "Kazla", district: "Rajshahi", division: "Rajshahi", lat: 24.3685, lng: 88.6276, kind: "area" },
+  { name: "Motihar", district: "Rajshahi", division: "Rajshahi", lat: 24.3639, lng: 88.6288, kind: "area" },
+  { name: "Baharampur", district: "Rajshahi", division: "Rajshahi", lat: 24.3803, lng: 88.5866, kind: "area" },
+  { name: "Talaimari", district: "Rajshahi", division: "Rajshahi", lat: 24.3642, lng: 88.6186, kind: "area" },
+  { name: "Binodpur", district: "Rajshahi", division: "Rajshahi", lat: 24.3663, lng: 88.6366, kind: "area" },
+  // Barishal
+  { name: "Nathullabad", district: "Barishal", division: "Barishal", lat: 22.7153, lng: 90.3524, kind: "area" },
+  { name: "Rupatali", district: "Barishal", division: "Barishal", lat: 22.6826, lng: 90.3473, kind: "area" },
+  { name: "Sadar Road", district: "Barishal", division: "Barishal", lat: 22.7010, lng: 90.3662, kind: "area" },
+  { name: "Chawkbazar", district: "Barishal", division: "Barishal", lat: 22.6983, lng: 90.3680, kind: "area" },
+  { name: "Amtala", district: "Barishal", division: "Barishal", lat: 22.6925, lng: 90.3592, kind: "area" },
+  // Rangpur
+  { name: "Dhap", district: "Rangpur", division: "Rangpur", lat: 25.7533, lng: 89.2458, kind: "area" },
+  { name: "Carmichael College Area", district: "Rangpur", division: "Rangpur", lat: 25.7267, lng: 89.2552, kind: "area" },
+  { name: "Modern More", district: "Rangpur", division: "Rangpur", lat: 25.7196, lng: 89.2526, kind: "area" },
+  { name: "Jahaj Company More", district: "Rangpur", division: "Rangpur", lat: 25.7483, lng: 89.2520, kind: "area" },
+  { name: "Lalbagh", district: "Rangpur", division: "Rangpur", lat: 25.7369, lng: 89.2536, kind: "area" },
+  // Mymensingh
+  { name: "Ganginarpar", district: "Mymensingh", division: "Mymensingh", lat: 24.7570, lng: 90.4042, kind: "area" },
+  { name: "Kewatkhali", district: "Mymensingh", division: "Mymensingh", lat: 24.7431, lng: 90.4158, kind: "area" },
+  { name: "Bhaluka", district: "Mymensingh", division: "Mymensingh", lat: 24.3800, lng: 90.3800, kind: "area" },
+  { name: "Town Hall", district: "Mymensingh", division: "Mymensingh", lat: 24.7610, lng: 90.4025, kind: "area" },
+  { name: "Notun Bazar", district: "Mymensingh", division: "Mymensingh", lat: 24.7554, lng: 90.4031, kind: "area" },
+  { name: "Charpara", district: "Mymensingh", division: "Mymensingh", lat: 24.7475, lng: 90.4061, kind: "area" },
+  // Cumilla
+  { name: "Kandirpar", district: "Cumilla", division: "Chattogram", lat: 23.4589, lng: 91.1818, kind: "area" },
+  { name: "Paduar Bazar", district: "Cumilla", division: "Chattogram", lat: 23.4277, lng: 91.1396, kind: "area" },
+  { name: "Cantonment", district: "Cumilla", division: "Chattogram", lat: 23.4735, lng: 91.1252, kind: "area" },
+  { name: "Chawkbazar", district: "Cumilla", division: "Chattogram", lat: 23.4542, lng: 91.1920, kind: "area" },
+  { name: "Tomcham Bridge", district: "Cumilla", division: "Chattogram", lat: 23.4475, lng: 91.1788, kind: "area" },
+  { name: "Police Line", district: "Cumilla", division: "Chattogram", lat: 23.4619, lng: 91.1772, kind: "area" }
 ];
 
 export function areasOf(district: string): Place[] {
