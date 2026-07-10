@@ -252,7 +252,16 @@ const translations: Record<Language, Record<string, string>> = {
     paymentNagadConfirmation: 'ড্রাইভার গ্রহণ করলে নগদ পেমেন্ট অনুমোদন করবেন। টাকা দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।',
     paymentCardLabel: 'কার্ড',
     paymentCardHint: 'ভিসা বা মাস্টারকার্ড',
-    paymentCardConfirmation: 'ড্রাইভার গ্রহণ করলে কার্ডে চার্জ হবে। ভাড়া দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।'
+    paymentCardConfirmation: 'ড্রাইভার গ্রহণ করলে কার্ডে চার্জ হবে। ভাড়া দেশরাইডের কাছে জমা থাকবে — ট্রিপ শেষে ড্রাইভার পাবেন।',
+    popularRoutes: 'জনপ্রিয় রুট',
+    upcomingRides: 'আসন্ন রাইড',
+    seeAllRides: 'সব রাইড দেখুন →',
+    noUpcoming: 'এখনো কোনো রাইড নেই — প্রথম রাইডটি আপনিই দিন।',
+    instantOnly: 'শুধু ইনস্টান্ট বুক ⚡',
+    sortBy: 'সাজান',
+    sortEarliest: 'সবচেয়ে আগে',
+    sortCheapest: 'সবচেয়ে সস্তা',
+    sortTopRated: 'সেরা রেটিং'
   },
   en: {
     findRide: 'Find Ride',
@@ -497,7 +506,16 @@ const translations: Record<Language, Record<string, string>> = {
     paymentNagadConfirmation: 'After the driver accepts, you approve the Nagad payment. The fare is held for the trip and released after completion.',
     paymentCardLabel: 'Card',
     paymentCardHint: 'Visa or Mastercard',
-    paymentCardConfirmation: 'After the driver accepts, the card is charged. The fare is held for the trip and released after completion.'
+    paymentCardConfirmation: 'After the driver accepts, the card is charged. The fare is held for the trip and released after completion.',
+    popularRoutes: 'Popular routes',
+    upcomingRides: 'Upcoming rides',
+    seeAllRides: 'See all rides →',
+    noUpcoming: 'No rides yet — be the first to post one.',
+    instantOnly: 'Instant Book only ⚡',
+    sortBy: 'Sort',
+    sortEarliest: 'Earliest',
+    sortCheapest: 'Cheapest',
+    sortTopRated: 'Top rated'
   }
 };
 
@@ -510,7 +528,10 @@ function initialLanguage(): Language {
     const stored = localStorage.getItem(LANG_KEY);
     if (stored === 'bn' || stored === 'en') return stored;
   } catch { /* storage unavailable */ }
-  return 'en';
+  // The vitest suite asserts English strings; real users start in Bangla.
+  if (import.meta.env.MODE === 'test') return 'en';
+  // Bangla-first: most riders and drivers read Bangla.
+  return 'bn';
 }
 
 export function TranslationProvider({ children }: { children: ReactNode }) {

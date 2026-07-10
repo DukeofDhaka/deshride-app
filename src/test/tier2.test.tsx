@@ -508,7 +508,11 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     renderApp(`/chat/${booking.id}`);
     
     // UI should show error or redirect guest away
-    const chatHeader = screen.queryByText(/Chat/i) || screen.queryByText(/বার্তা/i) || screen.queryByPlaceholderText(/message/i);
+    // Query the chat page's own heading, not the substring "Chat" anywhere —
+    // route names like "Chattogram" on the home page would false-positive.
+    const chatHeader =
+      screen.queryByRole('heading', { name: /^(Chat|বার্তা)$/ }) ||
+      screen.queryByPlaceholderText(/message/i);
     expect(chatHeader).not.toBeInTheDocument();
   });
 
