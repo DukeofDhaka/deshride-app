@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
-import { recentSearches, rememberSearch } from "../lib/store";
+import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
+import { RideCard } from "../components/RideCard";
 import { findNearest, type SearchOrigin } from "../data/gazetteer";
 import { BD_BOUNDS } from "../lib/geo";
 import { useTranslation } from "../i18n";
@@ -53,6 +54,17 @@ export function HomePage() {
     );
   }, []);
   const previous = useMemo(() => recentSearches(), []);
+  const upcoming = useMemo(() => listUpcomingRides(), []);
+  const popular = useMemo(() => {
+    const counts = new Map<string, { from: string; to: string; n: number }>();
+    for (const r of upcoming) {
+      const key = `${r.from.district}→${r.to.district}`;
+      const cur = counts.get(key) ?? { from: r.from.district, to: r.to.district, n: 0 };
+      cur.n += 1;
+      counts.set(key, cur);
+    }
+    return [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 4);
+  }, [upcoming]);
 
   function openCalendar() {
     const input = dateRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
@@ -163,6 +175,44 @@ export function HomePage() {
               {t('postRideLink')}
             </Link>
           </p>
+        </div>
+
+        <div className="hero__side">
+          {popular.length > 0 && (
+            <div className="detail-panel">
+              <h2>{t('popularRoutes')}</h2>
+              <div className="rule-grid">
+                {popular.map((route) => (
+                  <button
+                    key={`${route.from}-${route.to}`}
+                    type="button"
+                    className="pill pill--toggle"
+                    onClick={() => runSearch(route.from, route.to)}
+                  >
+                    {route.from} → {route.to}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="detail-panel">
+            <h2>{t('upcomingRides')}</h2>
+            {upcoming.length === 0 ? (
+              <p className="detail-note">{t('noUpcoming')}</p>
+            ) : (
+              <div className="stack">
+                {upcoming.slice(0, 3).map((ride) => (
+                  <RideCard key={ride.id} ride={ride} />
+                ))}
+              </div>
+            )}
+            {upcoming.length > 3 && (
+              <Link className="secondary-link" to="/results">
+                {t('seeAllRides')}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
