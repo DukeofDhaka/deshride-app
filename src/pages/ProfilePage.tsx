@@ -142,14 +142,14 @@ export function ProfilePage() {
                 <li>{t("plate")} {profile.driver.plate}</li>
                 <li>{t("color")} {profile.driver.carColor}</li>
                 <li>
-                  Owner NID: ···{profile.driver.ownerNid.replace(/\D/g, "").slice(-4)}
+                  {t("ownerNidMasked", { last4: profile.driver.ownerNid.replace(/\D/g, "").slice(-4) })}
                   {profile.driver.ownerIsDriver
-                    ? " (owner drives)"
-                    : ` · Driver NID: ···${(profile.driver.driverNid ?? "").replace(/\D/g, "").slice(-4)}`}
+                    ? t("ownerDrives")
+                    : t("driverNidMasked", { last4: (profile.driver.driverNid ?? "").replace(/\D/g, "").slice(-4) })}
                 </li>
               </ul>
               {profile.driver.carPhoto && (
-                <img className="car-photo-preview" src={profile.driver.carPhoto} alt="Your car" />
+                <img className="car-photo-preview" src={profile.driver.carPhoto} alt={t("yourCarPhotoAlt")} />
               )}
             </div>
           )}

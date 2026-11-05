@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk, fillPostRideForm } from './helpers';
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -89,6 +90,7 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     expect(checkboxes.length).toBeGreaterThan(0);
     // Toggle instantBook
     fireEvent.click(checkboxes[0]);
+    fillPostRideForm();
     
     const submitBtn = screen.queryByRole('button', { name: /Post ride/i }) || screen.queryByText(/Post ride/i);
     expect(submitBtn).toBeInTheDocument();
@@ -111,6 +113,7 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     const noteTextarea = document.querySelector('textarea');
     expect(noteTextarea).toBeInTheDocument();
     fireEvent.change(noteTextarea!, { target: { value: 'Draft note' } });
+    fillPostRideForm();
     
     const checkbox = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(checkbox).toBeInTheDocument();
@@ -171,9 +174,8 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
       instantBook: true
     });
     
-    // Requesting 4 seats when 3 are total
-    const booking = store.requestBooking(ride.id, 4, 'bkash');
-    expect(booking).not.toBeNull();
+    // Requesting 4 seats when 3 are total is rejected outright
+    expect(() => store.requestBooking(ride.id, 4, 'bkash')).toThrow(/seats/i);
   });
 
   it('F2-B8: Booking with payment method Cash/bKash/Nagad resolves correct escrow state for instantBook', () => {
@@ -521,7 +523,7 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
   // =========================================================================
 
   it('F2-B21: Sending an empty or whitespace-only message is blocked in ChatPage', () => {
-    renderApp('/chat/bk-empty');
+    renderApp(`/chat/${bk('empty')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     const sendBtn = screen.queryByRole('button', { name: /send/i }) || screen.queryByText(/send/i);
     
@@ -531,13 +533,13 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     fireEvent.change(input!, { target: { value: '   ' } });
     fireEvent.click(sendBtn!);
     
-    const msgs = store.getMessages('bk-empty');
+    const msgs = store.getMessages(bk('empty'));
     expect(msgs.length).toBe(0);
   });
 
   it('F2-B22: Sending extremely long text message does not crash UI and wraps correctly', () => {
     const longText = 'A'.repeat(5000);
-    renderApp('/chat/bk-long');
+    renderApp(`/chat/${bk('long')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     const sendBtn = screen.queryByRole('button', { name: /send/i }) || screen.queryByText(/send/i);
     
@@ -547,12 +549,12 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     fireEvent.change(input!, { target: { value: longText } });
     fireEvent.click(sendBtn!);
     
-    const msgs = store.getMessages('bk-long');
+    const msgs = store.getMessages(bk('long'));
     expect(msgs.length).toBeGreaterThan(0);
   });
 
   it('F2-B23: Multiple rapid clicks on send button do not create duplicate messages', () => {
-    renderApp('/chat/bk-rapid');
+    renderApp(`/chat/${bk('rapid')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     const sendBtn = screen.queryByRole('button', { name: /send/i }) || screen.queryByText(/send/i);
     
@@ -563,12 +565,12 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
     fireEvent.click(sendBtn!);
     fireEvent.click(sendBtn!);
     
-    const msgs = store.getMessages('bk-rapid');
+    const msgs = store.getMessages(bk('rapid'));
     expect(msgs.length).toBeLessThan(3);
   });
 
   it('F2-B24: Messages from passenger and driver are styled differently (sent vs received)', () => {
-    const bookingId = 'bk-styles';
+    const bookingId = bk('styles');
     // Mock user profile to sender
     
     store.sendMessage(bookingId, 'Sent by me');
@@ -581,10 +583,10 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
   });
 
   it('F2-B25: Storage isolation ensures messages from other bookings do not render on ChatPage', () => {
-    store.sendMessage('bk-x', 'Private message x');
-    store.sendMessage('bk-y', 'Private message y');
+    store.sendMessage(bk('x'), 'Private message x');
+    store.sendMessage(bk('y'), 'Private message y');
     
-    renderApp('/chat/bk-x');
+    renderApp(`/chat/${bk('x')}`);
     
     expect(screen.queryByText(/Private message y/i)).toBeNull();
   });
@@ -595,14 +597,14 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
 
   it('F2-B26: Bangladeshi numbers in non-standard formats (e.g. (+88) 017-12345678) are censored', () => {
     const text = 'Call (+88) 01712-345678 immediately';
-    const msg = store.sendMessage('bk-censor-b1', text);
+    const msg = store.sendMessage(bk('censor-b1'), text);
     expect(msg.text).not.toContain('01712-345678');
     expect(msg.text).toContain('[HIDDEN]');
   });
 
   it('F2-B27: Multiple phone numbers in a single message are all individually censored', () => {
     const text = 'Numbers are 01711223344 and +8801811223344';
-    const msg = store.sendMessage('bk-censor-b2', text);
+    const msg = store.sendMessage(bk('censor-b2'), text);
     expect(msg.text).not.toContain('01711223344');
     expect(msg.text).not.toContain('+8801811223344');
     expect(msg.text).toContain('[HIDDEN]');
@@ -610,21 +612,21 @@ describe('Tier 2: Boundary & Corner Cases (F1 - F7)', () => {
 
   it('F2-B28: Numbers that look similar to phone numbers but aren\'t (e.g., prices like 17000 Tk, or dates like 01-08-2026) are NOT censored', () => {
     const text = 'Price is 17000 Tk, date is 01-08-2026';
-    const msg = store.sendMessage('bk-censor-b3', text);
+    const msg = store.sendMessage(bk('censor-b3'), text);
     expect(msg.text).toContain('17000');
     expect(msg.text).toContain('01-08-2026');
   });
 
   it('F2-B29: Phone number censoring is case-insensitive and ignores surrounding punctuation', () => {
     const text = 'Contact: 01711223344!!!';
-    const msg = store.sendMessage('bk-censor-b4', text);
+    const msg = store.sendMessage(bk('censor-b4'), text);
     expect(msg.text).not.toContain('01711223344');
     expect(msg.text).toContain('[HIDDEN]');
   });
 
   it('F2-B30: Censored phone number text displays exactly [HIDDEN] replacement', () => {
     const text = 'Call 01711223344';
-    const msg = store.sendMessage('bk-censor-b5', text);
+    const msg = store.sendMessage(bk('censor-b5'), text);
     expect(msg.text).toBe('Call [HIDDEN]');
   });
 

@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk } from './helpers';
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -69,7 +70,7 @@ describe('Adversarial Coverage Tests', () => {
   // Gap 2: Bengali digits phone number censoring bypass
   it('ADV-2: Phone number censoring is bypassed when using Bengali digits', () => {
     const text = 'আমার নম্বর হলো ০১৭১২৩৪৫৬৭৮';
-    const msg = store.sendMessage('bk-censor-test', text);
+    const msg = store.sendMessage(bk('censor-test'), text);
     
     expect(msg.text).not.toBe(text);
     expect(msg.text).toContain('[HIDDEN]');
@@ -78,7 +79,7 @@ describe('Adversarial Coverage Tests', () => {
   // Gap 3: Alternate separators phone number censoring bypass
   it('ADV-3: Phone number censoring is bypassed when using dot separators', () => {
     const text = 'Call 017.1234.5678';
-    const msg = store.sendMessage('bk-censor-test-2', text);
+    const msg = store.sendMessage(bk('censor-test-2'), text);
     
     expect(msg.text).not.toBe(text);
     expect(msg.text).toContain('[HIDDEN]');

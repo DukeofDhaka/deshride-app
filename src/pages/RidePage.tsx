@@ -3,8 +3,10 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { PAYMENT_METHODS, getPaymentMethod, type PaymentMethodId } from "../data/paymentMethods";
 import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
 import {
+  containsPhoneNumber,
   getProfile,
   getRide,
+  liveDriverRating,
   myBookingForRide,
   pendingRequests,
   requestBooking,
@@ -81,6 +83,7 @@ export function RidePage() {
   const myBooking = myBookingForRide(ride.id);
   const isMine = ride.driver.id === profile.id && !myBooking;
   const left = seatsLeft(ride);
+  const rating = liveDriverRating(ride);
   const km = roadKm(ride.from, ride.to);
   const requests = isMine ? pendingRequests(ride.id) : [];
   void refresh;
@@ -136,7 +139,7 @@ export function RidePage() {
             <span>{t("seatsLeft")}</span>
           </div>
           <div>
-            <strong>{ride.driver.rating ? `${ride.driver.rating.toFixed(1)}★` : t("newDriver")}</strong>
+            <strong>{rating ? `${rating.toFixed(1)}★` : t("newDriver")}</strong>
             <span>{t("driverRating")}</span>
           </div>
           <div>
@@ -186,8 +189,8 @@ export function RidePage() {
             </div>
             <h2>{ride.driver.name}</h2>
             <p>
-              {ride.driver.rating
-                ? `${ride.driver.rating.toFixed(1)}★ · ${t("tripsCount", { count: ride.driver.trips })}`
+              {rating
+                ? `${rating.toFixed(1)}★ · ${t("tripsCount", { count: ride.driver.trips })}`
                 : t("newDriverOnDeshRide")}
             </p>
           </div>
@@ -244,7 +247,7 @@ export function RidePage() {
               )}
               {myBooking.status === "accepted" && ride.status !== "completed" && (
                 <Link className="primary-button primary-button--full" to={`/chat/${myBooking.id}`}>
-                  Message
+                  {t("message")}
                 </Link>
               )}
               <Link className="secondary-link secondary-link--button" to="/rides">
@@ -311,18 +314,17 @@ export function RidePage() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setMessage(val);
-                    const phoneRegex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
-                    setShowMsgWarning(phoneRegex.test(val));
+                    setShowMsgWarning(containsPhoneNumber(val));
                   }}
                 />
                 {showMsgWarning && (
                   <div className="banner banner--warn" style={{ marginTop: "8px" }}>
-                    {language === "bn" ? "নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না।" : "Warning: Sharing phone numbers in public fields is not allowed."}
+                    {t("phoneWarning")}
                   </div>
                 )}
               </div>
 
-              <div className="pay-options" role="radiogroup" aria-label="Payment method">
+              <div className="pay-options" role="radiogroup" aria-label={t("paymentMethodLabel")}>
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.id}

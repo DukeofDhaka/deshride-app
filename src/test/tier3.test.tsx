@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk } from './helpers';
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -107,7 +108,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
   });
 
   it('F3-C4: Phone number typed in ChatPage input triggers warning banner, and upon sending is saved in store in censored format', () => {
-    renderApp('/chat/bk-c4');
+    renderApp(`/chat/${bk('c4')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     expect(input).toBeInTheDocument();
     
@@ -116,7 +117,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     expect(banner).toBeInTheDocument();
     
     // Store send
-    const msg = store.sendMessage('bk-c4', 'My phone is 01811223344');
+    const msg = store.sendMessage(bk('c4'), 'My phone is 01811223344');
     expect(msg.text).not.toContain('01811223344');
     expect(msg.text).toContain('[HIDDEN]');
   });

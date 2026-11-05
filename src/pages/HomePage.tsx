@@ -7,12 +7,8 @@ import { RideCard } from "../components/RideCard";
 import { findNearest, type SearchOrigin } from "../data/gazetteer";
 import { BD_BOUNDS } from "../lib/geo";
 import { useTranslation } from "../i18n";
+import { todayKey, tomorrowKey } from "../lib/time";
 
-function tomorrow(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -20,7 +16,7 @@ export function HomePage() {
   const [from, setFrom] = useState<Spot | null>(null);
   const [to, setTo] = useState<Spot | null>(null);
   const [currentOrigin, setCurrentOrigin] = useState<SearchOrigin | null>(null);
-  const [date, setDate] = useState(tomorrow());
+  const [date, setDate] = useState(tomorrowKey());
   const [seats, setSeats] = useState(1);
 
   const dateRef = useRef<HTMLInputElement>(null);
@@ -122,7 +118,7 @@ export function HomePage() {
                   className="field__input"
                   type="date"
                   value={date}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayKey()}
                   onClick={openCalendar}
                   onFocus={openCalendar}
                   onChange={(e) => setDate(e.target.value)}

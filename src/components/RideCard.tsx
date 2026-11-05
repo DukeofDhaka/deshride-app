@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Ride } from "../types";
 import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
-import { seatsLeft } from "../lib/store";
+import { liveDriverRating, seatsLeft } from "../lib/store";
 import { useTranslation } from "../i18n";
 
 function localeFor(language: string): string {
@@ -24,6 +24,7 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
   const { language, t } = useTranslation();
   const km = roadKm(ride.from, ride.to);
   const left = seatsLeft(ride);
+  const rating = liveDriverRating(ride);
   return (
     <Link
       className="ride-row"
@@ -55,7 +56,7 @@ export function RideCard({ ride, onHover }: { ride: Ride; onHover?: () => void }
               .slice(0, 2)}
           </span>
           {ride.driver.name}
-          {ride.driver.rating ? ` · ${ride.driver.rating.toFixed(1)}★` : ` · ${t("rideCardNewDriver")}`}
+          {rating ? ` · ${rating.toFixed(1)}★` : ` · ${t("rideCardNewDriver")}`}
         </span>
       </div>
       <div className="ride-row__price">

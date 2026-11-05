@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { extraStrings } from './i18n-extra';
 
 type Language = 'bn' | 'en';
 
@@ -519,6 +520,9 @@ const translations: Record<Language, Record<string, string>> = {
   }
 };
 
+Object.assign(translations.bn, extraStrings.bn);
+Object.assign(translations.en, extraStrings.en);
+
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
 const LANG_KEY = 'deshride.lang.v1';
@@ -536,6 +540,11 @@ function initialLanguage(): Language {
 
 export function TranslationProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>(initialLanguage);
+
+  // Keep <html lang> in sync so :lang(bn) typography and screen readers follow.
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const toggleLanguage = () => {
     setLanguage(prev => {

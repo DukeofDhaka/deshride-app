@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import type { LuggageSize, Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
 import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
-import { createRide, getProfile, saveProfile, saveRideDraft, instantBookUnlocked, getStats, INSTANT_BOOK_SEATS } from "../lib/store";
+import { containsPhoneNumber, createRide, getProfile, saveProfile, saveRideDraft, instantBookUnlocked, getStats, INSTANT_BOOK_SEATS } from "../lib/store";
 import { useTranslation } from "../i18n";
+import { todayKey, tomorrowKey } from "../lib/time";
 
 const RULE_OPTIONS = [
   "ruleNoSmoking",
@@ -14,16 +15,11 @@ const RULE_OPTIONS = [
   "ruleWomenFrontSeat"
 ];
 
-function tomorrow(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 export function PostRidePage() {
   const navigate = useNavigate();
   const profile = getProfile();
-  const { language, t } = useTranslation();
+  const { t } = useTranslation();
 
   const [from, setFrom] = useState<Spot | null>(null);
   const [to, setTo] = useState<Spot | null>(null);
@@ -31,7 +27,7 @@ export function PostRidePage() {
   const [withReturn, setWithReturn] = useState(false);
   const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("16:00");
-  const [date, setDate] = useState(tomorrow());
+  const [date, setDate] = useState(tomorrowKey());
   const [time, setTime] = useState("07:30");
   const [seatsTotal, setSeatsTotal] = useState(3);
   const [price, setPrice] = useState<number | "">("");
@@ -72,30 +68,29 @@ export function PostRidePage() {
     event.preventDefault();
     setError(null);
 
-    const testName = typeof globalThis !== "undefined" && (globalThis as any).expect?.getState()?.currentTestName;
-    const isLegacyOnboardingTest = testName && (testName.includes("F2-B4") || testName.includes("F2-B5"));
-
-    if (!isLegacyOnboardingTest) {
-      if (!from || !to) {
-        setError(t("errorPickBoth"));
-        return;
-      }
-      if (from.district === to.district && Math.abs(from.lat - to.lat) < 0.05 && Math.abs(from.lng - to.lng) < 0.05) {
-        setError(t("errorSamePlace"));
-        return;
-      }
-      if (!driverName.trim()) {
-        setError(t("errorDriverName"));
-        return;
-      }
-      if (!effectivePrice || Number(effectivePrice) <= 0) {
-        setError(t("errorFare"));
-        return;
-      }
-      if (!car.trim()) {
-        setError(t("errorCar"));
-        return;
-      }
+    if (!from || !to) {
+      setError(t("errorPickBoth"));
+      return;
+    }
+    if (from.district === to.district && Math.abs(from.lat - to.lat) < 0.05 && Math.abs(from.lng - to.lng) < 0.05) {
+      setError(t("errorSamePlace"));
+      return;
+    }
+    if (!driverName.trim()) {
+      setError(t("errorDriverName"));
+      return;
+    }
+    if (!effectivePrice || Number(effectivePrice) <= 0) {
+      setError(t("errorFare"));
+      return;
+    }
+    if (!car.trim()) {
+      setError(t("errorCar"));
+      return;
+    }
+    if (Date.parse(`${date}T${time}:00`) <= Date.now()) {
+      setError(t("errorPastTime"));
+      return;
     }
 
     // First-time drivers finish their driver profile before the ride goes live.
@@ -103,12 +98,12 @@ export function PostRidePage() {
       const cleanStops = stops.filter((s): s is Spot => Boolean(s));
       const departure = new Date(`${date}T${time}:00`).toISOString();
       const rideInput = {
-        from: from || { name: "", district: "", lat: 0, lng: 0 },
-        to: to || { name: "", district: "", lat: 0, lng: 0 },
+        from,
+        to,
         stops: cleanStops.length > 0 ? cleanStops : undefined,
         departure,
         seatsTotal,
-        pricePerSeat: Number(effectivePrice) || 0,
+        pricePerSeat: Number(effectivePrice),
         car: car.trim(),
         luggage,
         rules,
@@ -218,7 +213,7 @@ export function PostRidePage() {
                 className="field__input"
                 type="date"
                 value={date}
-                min={new Date().toISOString().slice(0, 10)}
+                min={todayKey()}
                 onClick={() => openCalendar(dateRef)}
                 onFocus={() => openCalendar(dateRef)}
                 onChange={(e) => setDate(e.target.value)}
@@ -345,13 +340,12 @@ export function PostRidePage() {
               onChange={(e) => {
                 const val = e.target.value;
                 setNote(val);
-                const phoneRegex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
-                setShowWarning(phoneRegex.test(val));
+                setShowWarning(containsPhoneNumber(val));
               }}
             />
             {showWarning && (
               <div className="banner banner--warn" style={{ marginTop: "8px" }}>
-                {language === "bn" ? "নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না।" : "Warning: Sharing phone numbers in public fields is not allowed."}
+                {t("phoneWarning")}
               </div>
             )}
           </div>
@@ -434,7 +428,7 @@ export function PostRidePage() {
             </div>
           )}
 
-          {error && <p className="form-error">Error / ভুল: {error}</p>}
+          {error && <p className="form-error" role="alert">{t("errorPrefix")} {error}</p>}
 
           <button className="primary-button primary-button--full" type="submit">
             {t("postRideSubmit")}

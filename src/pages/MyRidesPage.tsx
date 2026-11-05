@@ -33,8 +33,9 @@ function formatDeparture(iso: string, language: string): string {
 
 function StarPicker({ onRate }: { onRate: (stars: number) => void }) {
   const [hover, setHover] = useState(0);
+  const { t } = useTranslation();
   return (
-    <span className="stars" role="radiogroup" aria-label="Rating">
+    <span className="stars" role="radiogroup" aria-label={t("ratingLabel")}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
@@ -43,7 +44,7 @@ function StarPicker({ onRate }: { onRate: (stars: number) => void }) {
           onMouseEnter={() => setHover(n)}
           onMouseLeave={() => setHover(0)}
           onClick={() => onRate(n)}
-          aria-label={`${n}`}
+          aria-label={t("starsLabel", { n })}
         >
           ★
         </button>
@@ -120,7 +121,7 @@ export function MyRidesPage() {
                       {ride.from.name} → {ride.to.name}
                     </strong>
                     <span>
-                      {formatDeparture(ride.departure, language)} · {formatBDT(ride.pricePerSeat)}/seat ·{" "}
+                      {formatDeparture(ride.departure, language)} · {formatBDT(ride.pricePerSeat)}{t("perSeatShort")} ·{" "}
                       {done
                         ? t("tripDone")
                         : t("seatsEmpty", { left: seatsLeft(ride), total: ride.seatsTotal })}
@@ -177,7 +178,7 @@ export function MyRidesPage() {
                         </div>
                         {!done && (
                           <Link className="primary-button" to={`/chat/${b.id}`} style={{ padding: '4px 8px', fontSize: '14px' }}>
-                            Message
+                            {t("message")}
                           </Link>
                         )}
                       </li>
@@ -312,7 +313,7 @@ export function MyRidesPage() {
                   )}
                   {ride.status !== "completed" && ride.status !== "cancelled" && booking.status === "accepted" && (
                     <Link className="primary-button" to={`/chat/${booking.id}`}>
-                      Message
+                      {t("message")}
                     </Link>
                   )}
                   {(booking.status === "pending" ||

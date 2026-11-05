@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { RideCard } from "../components/RideCard";
-import { searchRides } from "../lib/store";
+import { liveDriverRating, searchRides } from "../lib/store";
 import { useTranslation } from "../i18n";
 
 export function SearchPage() {
@@ -10,15 +10,16 @@ export function SearchPage() {
   const fromDistrict = params.get("from") ?? undefined;
   const toDistrict = params.get("to") ?? undefined;
   const date = params.get("date") ?? undefined;
+  const seats = Math.max(1, Number(params.get("seats")) || 1);
 
   const exact = useMemo(
-    () => searchRides({ fromDistrict, toDistrict, date }),
-    [fromDistrict, toDistrict, date]
+    () => searchRides({ fromDistrict, toDistrict, date, seats }),
+    [fromDistrict, toDistrict, date, seats]
   );
   // When the day has nothing, show the same corridor on other dates.
   const nearby = useMemo(
-    () => (exact.length === 0 ? searchRides({ fromDistrict, toDistrict }) : []),
-    [exact.length, fromDistrict, toDistrict]
+    () => (exact.length === 0 ? searchRides({ fromDistrict, toDistrict, seats }) : []),
+    [exact.length, fromDistrict, toDistrict, seats]
   );
 
   const base = exact.length > 0 ? exact : nearby;
@@ -28,7 +29,7 @@ export function SearchPage() {
     const filtered = instantOnly ? base.filter((r) => r.instantBook) : base;
     const sorted = [...filtered];
     if (sort === "price") sorted.sort((a, b) => a.pricePerSeat - b.pricePerSeat);
-    if (sort === "rating") sorted.sort((a, b) => (b.driver.rating ?? 0) - (a.driver.rating ?? 0));
+    if (sort === "rating") sorted.sort((a, b) => (liveDriverRating(b) ?? 0) - (liveDriverRating(a) ?? 0));
     return sorted;
   }, [base, instantOnly, sort]);
 

@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk } from './helpers';
 
 // Helper to render the application at a specific route
 function renderApp(initialRoute = '/') {
@@ -326,12 +327,12 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
       instantBook: false
     });
     
-    // First guest occupies both seats
+    // Two requests arrive while both seats are still free
     const b1 = store.requestBooking(ride.id, 2, 'bkash');
-    store.updateBookingStatus(b1.id, 'accepted');
-    
-    // Second guest requests 1 seat
     const b2 = store.requestBooking(ride.id, 1, 'bkash');
+
+    // Accepting the first fills the car, so the second can't be accepted
+    store.updateBookingStatus(b1.id, 'accepted');
     const result = store.updateBookingStatus(b2.id, 'accepted');
     
     // Should return an error message
@@ -482,7 +483,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   // =========================================================================
 
   it('F5-1: ChatPage renders message input field and send button', () => {
-    renderApp('/chat/bk-test-123');
+    renderApp(`/chat/${bk('test-123')}`);
     const input = screen.queryByPlaceholderText(/message/i) || document.querySelector('input[type="text"]');
     const sendBtn = screen.queryByRole('button', { name: /send/i }) || screen.queryByText(/send/i);
     
@@ -491,7 +492,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F5-2: sendMessage persists message correctly in store', () => {
-    const bookingId = 'bk-test-456';
+    const bookingId = bk('test-456');
     const text = 'Persisted chat message';
     
     const msg = store.sendMessage(bookingId, text);
@@ -504,8 +505,8 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F5-3: getMessages retrieves correct messages for specific bookingId', () => {
-    const b1 = 'bk-1';
-    const b2 = 'bk-2';
+    const b1 = bk('1');
+    const b2 = bk('2');
     
     store.sendMessage(b1, 'Message for booking 1');
     store.sendMessage(b2, 'Message for booking 2');
@@ -521,7 +522,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F5-4: ChatPage renders sent and received messages correctly', () => {
-    const bookingId = 'bk-chat-789';
+    const bookingId = bk('chat-789');
     store.sendMessage(bookingId, 'Hello, I am testing rendering');
     
     renderApp(`/chat/${bookingId}`);
@@ -531,7 +532,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F5-5: Messages are loaded from store on ChatPage initialization', () => {
-    const bookingId = 'bk-init-999';
+    const bookingId = bk('init-999');
     store.sendMessage(bookingId, 'Pre-existing message');
     
     renderApp(`/chat/${bookingId}`);
@@ -546,21 +547,21 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
 
   it('F6-1: store.sendMessage censors +88017xxxxxxxx phone number in chat message', () => {
     const text = 'My number is +8801712345678, call me';
-    const msg = store.sendMessage('bk-censor-1', text);
+    const msg = store.sendMessage(bk('censor-1'), text);
     expect(msg.text).not.toContain('+8801712345678');
     expect(msg.text).toContain('[HIDDEN]');
   });
 
   it('F6-2: store.sendMessage censors 018xxxxxxxx phone number in chat message', () => {
     const text = 'Call 01811223344';
-    const msg = store.sendMessage('bk-censor-2', text);
+    const msg = store.sendMessage(bk('censor-2'), text);
     expect(msg.text).not.toContain('01811223344');
     expect(msg.text).toContain('[HIDDEN]');
   });
 
   it('F6-3: store.sendMessage censors 88019xxxxxxxx phone number in chat message', () => {
     const text = 'Use number 8801900000000 please';
-    const msg = store.sendMessage('bk-censor-3', text);
+    const msg = store.sendMessage(bk('censor-3'), text);
     expect(msg.text).not.toContain('8801900000000');
     expect(msg.text).toContain('[HIDDEN]');
   });
@@ -584,7 +585,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
 
   it('F6-5: Phone number censoring works for numbers containing spaces and hyphens', () => {
     const text = 'Send money to +880 1512 - 345678';
-    const msg = store.sendMessage('bk-censor-5', text);
+    const msg = store.sendMessage(bk('censor-5'), text);
     expect(msg.text).not.toContain('+880 1512 - 345678');
     expect(msg.text).toContain('[HIDDEN]');
   });
@@ -615,7 +616,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F7-3: ChatPage message input triggers warning banner when phone number is typed', () => {
-    renderApp('/chat/bk-warn-1');
+    renderApp(`/chat/${bk('warn-1')}`);
     const input = screen.queryByPlaceholderText(/message/i) || document.querySelector('input[type="text"]');
     expect(input).toBeInTheDocument();
     
@@ -625,7 +626,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F7-4: ChatPage message input removes warning banner when phone number is deleted', () => {
-    renderApp('/chat/bk-warn-2');
+    renderApp(`/chat/${bk('warn-2')}`);
     const input = screen.queryByPlaceholderText(/message/i) || document.querySelector('input[type="text"]');
     expect(input).toBeInTheDocument();
     
@@ -636,7 +637,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
   });
 
   it('F7-5: Warning banner displays specific localization text warning against sharing contact info', () => {
-    renderApp('/chat/bk-warn-3');
+    renderApp(`/chat/${bk('warn-3')}`);
     const input = screen.queryByPlaceholderText(/message/i) || document.querySelector('input[type="text"]');
     expect(input).toBeInTheDocument();
     

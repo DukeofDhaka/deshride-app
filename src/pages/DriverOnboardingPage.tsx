@@ -142,7 +142,7 @@ export function DriverOnboardingPage() {
               id="ob-owner-nid"
               className="field__input"
               value={ownerNid}
-              placeholder="10, 13 or 17 digits"
+              placeholder={t("nidPlaceholder")}
               inputMode="numeric"
               onChange={(e) => setOwnerNid(e.target.value)}
             />
@@ -166,7 +166,7 @@ export function DriverOnboardingPage() {
                 id="ob-driver-nid"
                 className="field__input"
                 value={driverNid}
-                placeholder="10, 13 or 17 digits"
+                placeholder={t("nidPlaceholder")}
                 inputMode="numeric"
                 onChange={(e) => setDriverNid(e.target.value)}
               />
@@ -211,7 +211,7 @@ export function DriverOnboardingPage() {
               accept="image/*"
               onChange={handlePhoto}
             />
-            {carPhoto && <img className="car-photo-preview" src={carPhoto} alt="Your car" />}
+            {carPhoto && <img className="car-photo-preview" src={carPhoto} alt={t("yourCarPhotoAlt")} />}
             <p className="field__hint">
               {t("carPhotoHint")}
             </p>

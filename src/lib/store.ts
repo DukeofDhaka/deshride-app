@@ -3,6 +3,7 @@
 // reimplementing these functions against an API, nothing else.
 import type { Booking, BookingStatus, PayStatus, Profile, Ride, Spot, Message } from "../types";
 import type { PaymentMethodId } from "../data/paymentMethods";
+import { localDateKey } from "./time";
 
 const KEYS = {
   profile: "deshride.profile.v1",
@@ -91,21 +92,38 @@ function waypoints(r: Ride): string[] {
   return [r.from, ...(r.stops ?? []), r.to].map((s) => s.district);
 }
 
+// Where along a ride's route (from, stops…, to) a rider gets on and off.
+// Returns null when the requested origin doesn't come before the destination.
+export function routeIndices(
+  ride: Ride,
+  fromDistrict?: string,
+  toDistrict?: string
+): { pickupIdx: number; dropoffIdx: number } | null {
+  const route = waypoints(ride);
+  const pickupIdx = fromDistrict ? route.indexOf(fromDistrict) : 0;
+  const dropoffIdx = toDistrict ? route.lastIndexOf(toDistrict) : route.length - 1;
+  if (pickupIdx === -1 || dropoffIdx === -1) return null;
+  if (pickupIdx >= dropoffIdx) return null;
+  return { pickupIdx, dropoffIdx };
+}
+
+export function routeMatches(ride: Ride, fromDistrict?: string, toDistrict?: string): boolean {
+  return routeIndices(ride, fromDistrict, toDistrict) !== null;
+}
+
 // A ride matches when the requested origin comes before the requested
-// destination anywhere along its route, stopovers included.
+// destination anywhere along its route, stopovers included. Days are
+// compared in local time (see lib/time.ts).
 export function searchRides(params: {
   fromDistrict?: string;
   toDistrict?: string;
   date?: string;
+  seats?: number;
 }): Ride[] {
   return listUpcomingRides().filter((r) => {
-    if (params.date && r.departure.slice(0, 10) !== params.date) return false;
-    const route = waypoints(r);
-    const fromIdx = params.fromDistrict ? route.indexOf(params.fromDistrict) : 0;
-    const toIdx = params.toDistrict ? route.lastIndexOf(params.toDistrict) : route.length - 1;
-    if (params.fromDistrict && fromIdx === -1) return false;
-    if (params.toDistrict && toIdx === -1) return false;
-    return fromIdx < toIdx || (!params.fromDistrict && !params.toDistrict);
+    if (params.date && localDateKey(r.departure) !== params.date) return false;
+    if (params.seats && seatsLeft(r) < params.seats) return false;
+    return routeMatches(r, params.fromDistrict, params.toDistrict);
   });
 }
 
@@ -127,12 +145,21 @@ export interface NewRide {
   instantBook?: boolean;
 }
 
-export function createRide(input: NewRide): Ride {
-  const testName = typeof globalThis !== "undefined" && (globalThis as any).expect?.getState()?.currentTestName;
-  const isLegacyOnboardingTest = testName && (testName.includes("F2-B4") || testName.includes("F2-B5"));
-  if (!isLegacyOnboardingTest) {
-    if (input.pricePerSeat <= 0 || !input.car?.trim() || !input.from?.name || !input.to?.name) { throw new Error("Invalid ride details"); }
+function assertValidRide(input: NewRide) {
+  if (
+    !(input.pricePerSeat > 0) ||
+    !input.car?.trim() ||
+    !input.from?.name ||
+    !input.to?.name ||
+    !(input.seatsTotal > 0) ||
+    Number.isNaN(Date.parse(input.departure))
+  ) {
+    throw new Error("Invalid ride details");
   }
+}
+
+export function createRide(input: NewRide): Ride {
+  assertValidRide(input);
   const profile = getProfile();
   const rep = driverRating(profile.id);
   const ride: Ride = {
@@ -157,11 +184,7 @@ export function createRide(input: NewRide): Ride {
 
 // A ride being posted pauses here while the driver completes onboarding.
 export function saveRideDraft(draft: NewRide) {
-  const testName = typeof globalThis !== "undefined" && (globalThis as any).expect?.getState()?.currentTestName;
-  const isLegacyOnboardingTest = testName && (testName.includes("F2-B4") || testName.includes("F2-B5"));
-  if (!isLegacyOnboardingTest) {
-    if (draft.pricePerSeat <= 0 || !draft.car?.trim() || !draft.from?.name || !draft.to?.name) { throw new Error("Invalid ride details"); }
-  }
+  assertValidRide(draft);
   save(KEYS.draft, draft);
 }
 
@@ -352,9 +375,7 @@ export function requestBooking(
   if (!ride) {
     throw new Error("Ride not found");
   }
-  const testName = typeof globalThis !== "undefined" && (globalThis as any).expect?.getState()?.currentTestName;
-  const isLegacyTest = testName && (testName.includes("F3-4") || testName.includes("F2-B7"));
-  if (seatsLeft(ride) < seats && !isLegacyTest) {
+  if (seatsLeft(ride) < seats) {
     throw new Error("Not enough seats left.");
   }
   const profile = getProfile();
@@ -575,6 +596,12 @@ export function addDriverRating(driverId: string, stars: number) {
   save(RATINGS_KEY, all);
 }
 
+// The rating to show for a ride's driver: live from reviews, falling back to
+// the snapshot taken when the ride was posted (seed drivers have no reviews).
+export function liveDriverRating(ride: Ride): number | null {
+  return driverRating(ride.driver.id).avg ?? ride.driver.rating;
+}
+
 export function driverRating(driverId: string): { avg: number | null; count: number } {
   const list = load<RatingsMap>(RATINGS_KEY, {})[driverId] ?? [];
   if (list.length === 0) return { avg: null, count: 0 };
@@ -630,29 +657,21 @@ export function confirmReleaseAndRate(bookingId: string, stars: number | null) {
 }
 
 // --- messaging -------------------------------------------------------------
+// Bangladeshi mobile numbers in any common shape: +880 / 880 / 0 prefix,
+// Bangla or Latin digits, with spaces, dashes, dots or zero-width joiners.
+const PHONE_PATTERN =
+  /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/.source;
+
+export function containsPhoneNumber(text: string): boolean {
+  return new RegExp(PHONE_PATTERN, "i").test(text);
+}
+
 export function censorPhoneNumbers(text: string): string {
-  const regex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
-  return text.replace(regex, "[HIDDEN]");
+  return text.replace(new RegExp(PHONE_PATTERN, "gi"), "[HIDDEN]");
 }
 
 export function getBooking(id: string): Booking | undefined {
-  let booking = allBookings().find((b) => b.id === id);
-  if (!booking && id && id.startsWith("bk")) {
-    const profile = getProfile();
-    booking = {
-      id,
-      rideId: "ride-test-id",
-      guestId: profile.id,
-      guestName: profile.name || "Guest",
-      seats: 1,
-      payMethod: "bkash",
-      status: "accepted",
-      payStatus: "held",
-      createdAt: new Date().toISOString()
-    };
-    saveBookings([...allBookings(), booking]);
-  }
-  return booking;
+  return allBookings().find((b) => b.id === id);
 }
 
 export function getMessages(bookingId: string): Message[] {
@@ -663,11 +682,10 @@ export function getMessages(bookingId: string): Message[] {
 export function sendMessage(bookingId: string, text: string): Message {
   const profile = getProfile();
   const booking = getBooking(bookingId);
-  if (booking) {
-    const ride = getRide(booking.rideId);
-    if (profile.id !== booking.guestId && (!ride || profile.id !== ride.driver.id)) {
-      throw new Error("Unauthorized");
-    }
+  if (!booking) throw new Error("Booking not found");
+  const ride = getRide(booking.rideId);
+  if (profile.id !== booking.guestId && (!ride || profile.id !== ride.driver.id)) {
+    throw new Error("Unauthorized");
   }
   const all = load<Message[]>("deshride.messages.v1", []);
   const message: Message = {
