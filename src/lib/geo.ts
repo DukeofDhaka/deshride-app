@@ -1,4 +1,5 @@
-import type { Spot } from "../types";
+import type { Ride, Spot } from "../types";
+import { addHours } from "./time";
 
 // Bounding box for Bangladesh incl. the far-south islands, with margin.
 export const BD_BOUNDS = {
@@ -50,11 +51,30 @@ export function roadKm(a: Spot, b: Spot): number {
   return Math.round(haversineKm(a, b) * 1.25);
 }
 
-export function estimateDuration(km: number): string {
-  const hours = km / 48 + 0.4;
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
+export function estimateHours(km: number): number {
+  return km / 48 + 0.4;
+}
+
+export function estimateDuration(km: number, language: "bn" | "en" = "en"): string {
+  const hours = estimateHours(km);
+  let h = Math.floor(hours);
+  let m = Math.round((hours - h) * 60);
+  if (m === 60) {
+    h += 1;
+    m = 0;
+  }
+  if (language === "bn") {
+    const bn = (n: number) => n.toLocaleString("bn-BD");
+    return m === 0 ? `${bn(h)} ঘ.` : `${bn(h)} ঘ. ${bn(m)} মি.`;
+  }
   return m === 0 ? `${h}h` : `${h}h ${m.toString().padStart(2, "0")}m`;
+}
+
+// Road distance along a multi-stop route (from, stops…, to).
+export function routeKm(points: Spot[]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) total += roadKm(points[i - 1], points[i]);
+  return total;
 }
 
 // Per-seat band that beats full-car hire and competes with the AC bus:
@@ -72,8 +92,8 @@ export function busFareEstimate(km: number): number {
   return Math.max(400, Math.round((km * 8) / 50) * 50);
 }
 
-export function formatBDT(amount: number): string {
-  return `৳${amount.toLocaleString("en-IN")}`;
+export function formatBDT(amount: number, language: "bn" | "en" = "en"): string {
+  return `৳${amount.toLocaleString(language === "bn" ? "bn-BD" : "en-IN")}`;
 }
 
 // The big three rivers, simplified — they make the map read as Bangladesh.
@@ -134,4 +154,26 @@ export function outlinePath(): string {
     ).join(" ");
   }
   return cachedOutline;
+}
+
+// Fare for riding only part of a route (joining or leaving at a stopover):
+// the seat price scaled by the share of road distance, rounded to ৳10, never
+// below ৳100 and never above the full-route price.
+export function segmentFare(ride: Ride, pickupIdx: number, dropoffIdx: number): number {
+  const route = [ride.from, ...(ride.stops ?? []), ride.to];
+  if (pickupIdx <= 0 && dropoffIdx >= route.length - 1) return ride.pricePerSeat;
+  const total = routeKm(route);
+  const part = routeKm(route.slice(pickupIdx, dropoffIdx + 1));
+  if (total <= 0) return ride.pricePerSeat;
+  const scaled = Math.round((ride.pricePerSeat * part) / total / 10) * 10;
+  return Math.min(ride.pricePerSeat, Math.max(100, scaled));
+}
+
+// Estimated clock time at each point of the route [from, ...stops, to],
+// assuming steady progress at the highway average from departure.
+export function stopTimes(ride: Ride): string[] {
+  const route = [ride.from, ...(ride.stops ?? []), ride.to];
+  return route.map((_, i) =>
+    i === 0 ? ride.departure : addHours(ride.departure, estimateHours(routeKm(route.slice(0, i + 1))))
+  );
 }

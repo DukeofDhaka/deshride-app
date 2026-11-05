@@ -196,7 +196,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
     const ride = store.createRide({
       from: { name: 'Dhaka', district: 'Dhaka', lat: 23.75, lng: 90.38 },
       to: { name: 'Chattogram', district: 'Chattogram', lat: 22.36, lng: 91.83 },
-      departure: new Date().toISOString(),
+      departure: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
       seatsTotal: 3,
       pricePerSeat: 1500,
       car: 'Toyota Axio',
@@ -247,7 +247,7 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
     const ride = store.createRide({
       from: { name: 'Dhaka', district: 'Dhaka', lat: 23.75, lng: 90.38 },
       to: { name: 'Chattogram', district: 'Chattogram', lat: 22.36, lng: 91.83 },
-      departure: new Date().toISOString(),
+      departure: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
       seatsTotal: 3,
       pricePerSeat: 1500,
       car: 'Toyota Axio',

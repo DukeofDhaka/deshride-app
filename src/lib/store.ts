@@ -2,8 +2,10 @@
 // UI never touches storage directly — swapping in a real backend later means
 // reimplementing these functions against an API, nothing else.
 import type { Booking, BookingStatus, PayStatus, Profile, Ride, Spot, Message } from "../types";
+import { useSyncExternalStore } from "react";
 import type { PaymentMethodId } from "../data/paymentMethods";
 import { localDateKey } from "./time";
+import { segmentFare } from "./geo";
 
 const KEYS = {
   profile: "deshride.profile.v1",
@@ -30,6 +32,12 @@ export function subscribe(listener: Listener): () => void {
   return () => {
     listeners.delete(listener);
   };
+}
+
+// Re-render a component whenever store data changes. `read` must return a
+// primitive (or a stable string) so React can compare snapshots cheaply.
+export function useStoreValue<T extends string | number | boolean | null>(read: () => T): T {
+  return useSyncExternalStore(subscribe, read, read);
 }
 
 function notify() {
@@ -170,7 +178,10 @@ export function createRide(input: NewRide): Ride {
       rating: rep.avg,
       trips: getStats().driverTrips,
       accent: "#2f6f64",
-      phone: profile.phone || undefined
+      phone: profile.phone || undefined,
+      verified: Boolean(profile.driver),
+      plate: profile.driver?.plate,
+      carColor: profile.driver?.carColor
     },
     status: "active",
     createdAt: new Date().toISOString(),
@@ -216,6 +227,11 @@ export function recentSearches(): RecentSearch[] {
 export function cancelRide(id: string) {
   const ride = getRide(id);
   if (ride?.status === "completed") { throw new Error("Cannot cancel completed ride"); }
+  const affected = allBookings().filter((b) => b.rideId === id && b.status === "accepted");
+  if (ride && ride.status === "active" && affected.length > 0) addStrike(ride.driver.id, "cancelled");
+  for (const b of affected) {
+    pushNotification({ userId: b.guestId, kind: "rideCancelled", bookingId: b.id, rideId: id });
+  }
   saveRides(
     allRides().map((r) => (r.id === id ? { ...r, status: "cancelled" as const } : r))
   );
@@ -262,6 +278,11 @@ export function completeRide(id: string) {
     { driverTrips: s.driverTrips + 1, seatsFilled: s.seatsFilled + seatsSold },
     50 + 10 * seatsSold
   );
+  const ride = getRide(id);
+  for (const b of acceptedBookings(id)) {
+    pushNotification({ userId: b.guestId, kind: "rateTrip", bookingId: b.id, rideId: id });
+  }
+  if (ride && seatsSold > 0) pushNotification({ userId: ride.driver.id, kind: "ratePassengers", rideId: id });
 }
 
 // Rider taps "confirm ride" — releases their fare to the driver right away.
@@ -275,25 +296,45 @@ export function confirmRelease(bookingId: string) {
   );
 }
 
-// Auto-release any fares whose 24-hour confirmation window has passed.
-export function sweepPayments() {
-  const now = Date.now();
+// Runs on every navigation (App.tsx). Expires unanswered requests,
+// auto-releases fares whose 24-hour confirmation window has passed, and
+// queues "trip tomorrow" reminders. A backend would run this on a schedule.
+export function sweepLifecycle(now = Date.now()) {
   const bookings = allBookings();
-  if (
-    !bookings.some(
-      (b) => b.payStatus === "releasing" && b.releaseAt && Date.parse(b.releaseAt) <= now
-    )
-  ) {
-    return;
+  const expired: Booking[] = [];
+  let changed = false;
+  const next = bookings.map((b) => {
+    if (b.status === "pending" && b.expiresAt && Date.parse(b.expiresAt) <= now) {
+      changed = true;
+      const e = { ...b, status: "expired" as const };
+      expired.push(e);
+      return e;
+    }
+    if (b.payStatus === "releasing" && b.releaseAt && Date.parse(b.releaseAt) <= now) {
+      changed = true;
+      return { ...b, payStatus: "released" as const };
+    }
+    return b;
+  });
+  if (changed) saveBookings(next);
+  for (const b of expired) {
+    pushNotification({ userId: b.guestId, kind: "requestExpired", bookingId: b.id, rideId: b.rideId });
   }
-  saveBookings(
-    bookings.map((b) =>
-      b.payStatus === "releasing" && b.releaseAt && Date.parse(b.releaseAt) <= now
-        ? { ...b, payStatus: "released" as const }
-        : b
-    )
-  );
+  for (const b of next) {
+    if (b.status !== "accepted") continue;
+    const ride = getRide(b.rideId);
+    if (!ride || ride.status !== "active") continue;
+    const dep = Date.parse(ride.departure);
+    if (dep > now && dep - now <= 24 * 3600 * 1000) {
+      const n = { kind: "tripTomorrow" as const, bookingId: b.id, rideId: ride.id };
+      pushNotification({ ...n, userId: b.guestId }, notificationKey({ ...n, userId: b.guestId }));
+      pushNotification({ ...n, userId: ride.driver.id }, notificationKey({ ...n, userId: ride.driver.id }));
+    }
+  }
 }
+
+// Kept for older callers.
+export const sweepPayments = sweepLifecycle;
 
 // Cancellation ladder: full refund more than 24h out, half inside 24h, and
 // after departure the held fare goes to the driver instead.
@@ -310,6 +351,10 @@ export function cancelMyBooking(bookingId: string): string | null {
   const booking = bookings.find((b) => b.id === bookingId);
   if (!booking) return "Request not found.";
   const ride = getRide(booking.rideId);
+  if (booking.status === "accepted" && ride) {
+    addStrike(booking.guestId, "cancelled");
+    pushNotification({ userId: ride.driver.id, kind: "bookingCancelled", bookingId, rideId: ride.id });
+  }
   saveBookings(
     bookings.map((b) => {
       if (b.id !== bookingId) return b;
@@ -344,7 +389,7 @@ function saveBookings(bookings: Booking[]) {
 
 export function bookingsForRide(rideId: string): Booking[] {
   return allBookings().filter(
-    (b) => b.rideId === rideId && b.status !== "cancelled" && b.status !== "declined"
+    (b) => b.rideId === rideId && b.status !== "cancelled" && b.status !== "declined" && b.status !== "expired"
   );
 }
 
@@ -355,10 +400,17 @@ export function seatsLeft(ride: Ride): number {
   return Math.max(0, ride.seatsTotal - taken);
 }
 
+// What one seat costs this rider (segment bookings pay for their stretch).
+// Seats are still counted against the whole trip; per-leg occupancy would
+// need the driver to resell a seat after a mid-route drop-off.
+export function bookingFare(booking: Booking, ride: Ride): number {
+  return booking.farePerSeat ?? ride.pricePerSeat;
+}
+
 export function myBookingForRide(rideId: string): Booking | undefined {
   const profile = getProfile();
   return allBookings().find(
-    (b) => b.rideId === rideId && b.guestId === profile.id && b.status !== "cancelled"
+    (b) => b.rideId === rideId && b.guestId === profile.id && b.status !== "cancelled" && b.status !== "expired"
   );
 }
 
@@ -366,7 +418,8 @@ export function requestBooking(
   rideId: string,
   seats: number,
   payMethod: PaymentMethodId,
-  message?: string
+  message?: string,
+  segment?: { pickupIdx: number; dropoffIdx: number }
 ): Booking {
   if (seats <= 0) {
     throw new Error("Seats requested must be greater than zero.");
@@ -378,6 +431,13 @@ export function requestBooking(
   if (seatsLeft(ride) < seats) {
     throw new Error("Not enough seats left.");
   }
+  const lastIdx = (ride.stops?.length ?? 0) + 1;
+  const isSegment =
+    segment !== undefined &&
+    segment.pickupIdx >= 0 &&
+    segment.dropoffIdx <= lastIdx &&
+    segment.pickupIdx < segment.dropoffIdx &&
+    (segment.pickupIdx > 0 || segment.dropoffIdx < lastIdx);
   const profile = getProfile();
   // Instant Book rides skip the approval queue: the seat is confirmed and
   // the fare goes to escrow the moment the rider books.
@@ -393,10 +453,27 @@ export function requestBooking(
     message: message ? censorPhoneNumbers(message.trim()) : undefined,
     status: instant ? "accepted" : "pending",
     payStatus: instant ? "held" : "unpaid",
+    viaRequest: !instant,
+    expiresAt: instant ? undefined : requestDeadline(ride.departure),
+    ...(isSegment
+      ? {
+          pickupIdx: segment!.pickupIdx,
+          dropoffIdx: segment!.dropoffIdx,
+          farePerSeat: segmentFare(ride, segment!.pickupIdx, segment!.dropoffIdx)
+        }
+      : {}),
     createdAt: new Date().toISOString()
   };
   saveBookings([...allBookings(), booking]);
+  pushNotification({ userId: ride.driver.id, kind: "requestNew", bookingId: booking.id, rideId: ride.id });
   return booking;
+}
+
+// A driver has 12 hours to answer a request, or until departure if sooner.
+export const REQUEST_TTL_HOURS = 12;
+
+export function requestDeadline(departure: string, now = Date.now()): string {
+  return new Date(Math.min(now + REQUEST_TTL_HOURS * 3600 * 1000, Date.parse(departure))).toISOString();
 }
 
 export function updateBookingStatus(id: string, status: BookingStatus): string | null {
@@ -412,6 +489,9 @@ export function updateBookingStatus(id: string, status: BookingStatus): string |
     }
     if (booking.status === "cancelled") {
       return "Cannot accept a cancelled booking.";
+    }
+    if (booking.status === "expired") {
+      return "This request has expired.";
     }
     const ride = getRide(booking.rideId);
     if (!ride) return "Ride not found.";
@@ -438,9 +518,18 @@ export function updateBookingStatus(id: string, status: BookingStatus): string |
       let payStatus: PayStatus = b.payStatus;
       if (status === "accepted") payStatus = "held";
       if (status === "cancelled" && b.payStatus === "held") payStatus = "refunded";
-      return { ...b, status, payStatus };
+      const responded = (status === "accepted" || status === "declined") && b.status === "pending";
+      return { ...b, status, payStatus, respondedAt: responded ? new Date().toISOString() : b.respondedAt };
     })
   );
+  if (status === "accepted" || status === "declined") {
+    pushNotification({
+      userId: booking.guestId,
+      kind: status === "accepted" ? "requestAccepted" : "requestDeclined",
+      bookingId: booking.id,
+      rideId: booking.rideId
+    });
+  }
   return null;
 }
 
@@ -477,7 +566,7 @@ export function ensureSeed() {
   const seedRides: Ride[] = [
     {
       id: "ride-seed-1",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.75, 90.38, "Kalabagan bus stand, gate 2"),
       to: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle, Wells Park side"),
       departure: departureAt(1, 7, 30),
@@ -492,7 +581,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-2",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.87, 90.4, "Uttara, Jasimuddin Road front gate"),
       to: spot("Sylhet", "Sylhet", 24.9, 91.87, "Amberkhana point"),
       departure: departureAt(1, 8, 0),
@@ -507,7 +596,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-3",
-      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95", phone: "01913-000333" },
+      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95", phone: "01913-000333", verified: true, plate: "Dhaka Metro CHA 51-7720", carColor: "Black", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.72, 90.38, "Jatrabari, Padma-bound counter side"),
       to: spot("Khulna", "Khulna", 22.82, 89.55, "Shibbari Mor"),
       departure: departureAt(2, 6, 45),
@@ -522,7 +611,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-4",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
       from: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle"),
       to: spot("Cox's Bazar", "Cox's Bazar", 21.44, 91.97, "Kolatoli Mor"),
       departure: departureAt(2, 9, 0),
@@ -537,7 +626,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-5",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.79, 90.36, "Gabtoli, city side"),
       to: spot("Rajshahi", "Rajshahi", 24.37, 88.6, "Shaheb Bazar Zero Point"),
       departure: departureAt(3, 7, 0),
@@ -698,4 +787,162 @@ export function sendMessage(bookingId: string, text: string): Message {
   };
   save("deshride.messages.v1", [...all, message]);
   return message;
+}
+
+
+// --- notifications ----------------------------------------------------------
+// On-device inbox. A real backend would fan these out as FCM push messages;
+// until then they are created locally by store actions and the lifecycle sweep.
+
+export type NotificationKind =
+  | "requestNew"
+  | "requestAccepted"
+  | "requestDeclined"
+  | "requestExpired"
+  | "tripTomorrow"
+  | "rateTrip"
+  | "ratePassengers"
+  | "alertMatch"
+  | "seatOffer"
+  | "rideCancelled"
+  | "bookingCancelled";
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  kind: NotificationKind;
+  bookingId?: string;
+  rideId?: string;
+  requestId?: string;
+  text?: Record<string, string>;
+  createdAt: string;
+  read: boolean;
+}
+
+const NOTIFICATIONS_KEY = "deshride.notifications.v1";
+
+function allNotifications(): AppNotification[] {
+  return load<AppNotification[]>(NOTIFICATIONS_KEY, []);
+}
+
+export function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">, dedupeKey?: string) {
+  const all = allNotifications();
+  if (dedupeKey && all.some((x) => notificationKey(x) === dedupeKey)) return;
+  save(NOTIFICATIONS_KEY, [
+    { ...n, id: uid("ntf"), createdAt: new Date().toISOString(), read: false },
+    ...all
+  ].slice(0, 200));
+}
+
+function notificationKey(n: Pick<AppNotification, "userId" | "kind" | "bookingId" | "rideId" | "requestId">): string {
+  return [n.userId, n.kind, n.bookingId ?? "", n.rideId ?? "", n.requestId ?? ""].join("|");
+}
+
+export function myNotifications(): AppNotification[] {
+  const me = getProfile().id;
+  return allNotifications().filter((n) => n.userId === me);
+}
+
+export function unreadCount(): number {
+  const me = load<Profile | null>(KEYS.profile, null)?.id;
+  if (!me) return 0;
+  return allNotifications().filter((n) => n.userId === me && !n.read).length;
+}
+
+export function markNotificationsRead() {
+  const me = getProfile().id;
+  const all = allNotifications();
+  if (!all.some((n) => n.userId === me && !n.read)) return;
+  save(NOTIFICATIONS_KEY, all.map((n) => (n.userId === me ? { ...n, read: true } : n)));
+}
+
+
+// --- reliability, no-shows and two-way reviews --------------------------------
+
+const RELIABILITY_KEY = "deshride.reliability.v1";
+const GUEST_RATINGS_KEY = "deshride.guest-ratings.v1";
+
+interface Strikes {
+  cancelled: number;
+  noShows: number;
+}
+
+function addStrike(userId: string, kind: "cancelled" | "noShow") {
+  const all = load<Record<string, Strikes>>(RELIABILITY_KEY, {});
+  const cur = all[userId] ?? { cancelled: 0, noShows: 0 };
+  all[userId] = kind === "cancelled" ? { ...cur, cancelled: cur.cancelled + 1 } : { ...cur, noShows: cur.noShows + 1 };
+  save(RELIABILITY_KEY, all);
+}
+
+// Trips counts finished trips plus the ones this person cancelled late, so the
+// cancellation rate reads as "cancelled 1 of 20".
+export function reliability(userId: string): { trips: number; cancelled: number; noShows: number } {
+  const strikes = load<Record<string, Strikes>>(RELIABILITY_KEY, {})[userId] ?? { cancelled: 0, noShows: 0 };
+  const drove = allRides().filter((r) => r.driver.id === userId && r.status === "completed").length;
+  const rode = allBookings().filter((b) => b.guestId === userId && b.status === "accepted" && b.payStatus === "released").length;
+  return { trips: drove + rode + strikes.cancelled, cancelled: strikes.cancelled, noShows: strikes.noShows };
+}
+
+// Share of booking requests the driver answered before they expired.
+export function responseStats(driverId: string): { rate: number; total: number } {
+  const rideIds = new Set(allRides().filter((r) => r.driver.id === driverId).map((r) => r.id));
+  const resolved = allBookings().filter(
+    (b) => rideIds.has(b.rideId) && b.viaRequest && (b.respondedAt || b.status === "expired")
+  );
+  if (resolved.length === 0) return { rate: 1, total: 0 };
+  return { rate: resolved.filter((b) => b.respondedAt).length / resolved.length, total: resolved.length };
+}
+
+// After departure either side can report that the other didn't turn up.
+// A driver no-show refunds the rider in full; a rider no-show releases the
+// held fare to the driver. Both count against the no-show's reliability.
+export function reportNoShow(bookingId: string, who: "guest" | "driver"): string | null {
+  const booking = getBooking(bookingId);
+  if (!booking) return "Booking not found.";
+  const ride = getRide(booking.rideId);
+  if (!ride) return "Ride not found.";
+  const me = getProfile().id;
+  if (booking.status !== "accepted" || booking.noShow) return "This booking can't be reported.";
+  if (Date.now() < Date.parse(ride.departure)) return "You can report a no-show only after departure time.";
+  if (who === "guest") {
+    if (me !== ride.driver.id) return "Only the driver can report a passenger no-show.";
+    if (booking.payStatus !== "held" && booking.payStatus !== "releasing") return "This fare is already settled.";
+    saveBookings(
+      allBookings().map((b) => (b.id === bookingId ? { ...b, noShow: "guest" as const, payStatus: "released" as const } : b))
+    );
+    addStrike(booking.guestId, "noShow");
+  } else {
+    if (me !== booking.guestId) return "Only the passenger can report a driver no-show.";
+    if (booking.payStatus !== "held" && booking.payStatus !== "releasing") return "This fare is already settled.";
+    saveBookings(
+      allBookings().map((b) =>
+        b.id === bookingId ? { ...b, noShow: "driver" as const, payStatus: "refunded" as const, refundPct: 100 } : b
+      )
+    );
+    addStrike(ride.driver.id, "noShow");
+  }
+  return null;
+}
+
+// The driver rates each passenger once the trip is done.
+export function ratePassenger(bookingId: string, stars: number): string | null {
+  const booking = getBooking(bookingId);
+  if (!booking) return "Booking not found.";
+  const ride = getRide(booking.rideId);
+  if (!ride || ride.driver.id !== getProfile().id) return "Only the driver can rate passengers.";
+  if (ride.status !== "completed" || booking.status !== "accepted") return "Rate passengers after the trip.";
+  if (booking.driverRating) return "Already rated.";
+  const value = Math.max(1, Math.min(5, Math.round(stars)));
+  saveBookings(allBookings().map((b) => (b.id === bookingId ? { ...b, driverRating: value } : b)));
+  const all = load<Record<string, number[]>>(GUEST_RATINGS_KEY, {});
+  all[booking.guestId] = [...(all[booking.guestId] ?? []), value];
+  save(GUEST_RATINGS_KEY, all);
+  updateStats({}, 10);
+  return null;
+}
+
+export function passengerRating(guestId: string): { avg: number | null; count: number } {
+  const list = load<Record<string, number[]>>(GUEST_RATINGS_KEY, {})[guestId] ?? [];
+  if (list.length === 0) return { avg: null, count: 0 };
+  return { avg: list.reduce((a, b) => a + b, 0) / list.length, count: list.length };
 }

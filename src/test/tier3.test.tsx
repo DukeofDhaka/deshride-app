@@ -54,7 +54,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     const ride = store.createRide({
       from: { name: 'Dhaka', district: 'Dhaka', lat: 23.75, lng: 90.38 },
       to: { name: 'Chattogram', district: 'Chattogram', lat: 22.36, lng: 91.83 },
-      departure: new Date().toISOString(),
+      departure: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
       seatsTotal: 3,
       pricePerSeat: 1500,
       car: 'Toyota Axio',
@@ -67,9 +67,10 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     expect(booking.status).toBe('pending');
     
     // View ride page
-    renderApp(`/ride/${ride.id}`);
+    const first = renderApp(`/ride/${ride.id}`);
     let msgBtn = screen.queryByText(/Message/i) || screen.queryByRole('button', { name: /Message/i });
     expect(msgBtn === null || (msgBtn as HTMLButtonElement).disabled || msgBtn.getAttribute('aria-disabled')).toBeTruthy();
+    first.unmount();
     
     // Accept booking
     store.updateBookingStatus(booking.id, 'accepted');

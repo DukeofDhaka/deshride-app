@@ -8,6 +8,15 @@ export interface Spot {
   note?: string;
 }
 
+export interface TravelPrefs {
+  chat: "quiet" | "some" | "chatty";
+  music: boolean;
+  pets: boolean;
+  ac: boolean;
+}
+
+// A snapshot of the driver taken when the ride is posted, so the listing
+// still reads correctly if the driver edits their profile later.
 export interface DriverInfo {
   id: string;
   name: string;
@@ -15,6 +24,13 @@ export interface DriverInfo {
   trips: number;
   accent: string;
   phone?: string;
+  verified?: boolean;
+  photo?: string;
+  bio?: string;
+  prefs?: TravelPrefs;
+  memberSince?: string;
+  plate?: string;
+  carColor?: string;
 }
 
 export type LuggageSize = "small" | "medium" | "large";
@@ -39,7 +55,8 @@ export interface Ride {
   createdAt: string;
 }
 
-export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled";
+// "expired": the driver didn't answer a request before its deadline.
+export type BookingStatus = "pending" | "accepted" | "declined" | "cancelled" | "expired";
 
 // Escrow lifecycle: the fare is collected when the driver accepts ("held").
 // When the driver marks the trip done it enters "releasing" — the rider can
@@ -60,6 +77,19 @@ export interface Booking {
   rating?: number;
   releaseAt?: string;
   refundPct?: number;
+  // Segment bookings (joining/leaving at a stopover): indices into
+  // [from, ...stops, to] and the per-seat fare for that stretch.
+  pickupIdx?: number;
+  dropoffIdx?: number;
+  farePerSeat?: number;
+  // Requests (not Instant Book) must be answered by this time or they expire.
+  expiresAt?: string;
+  viaRequest?: boolean;
+  respondedAt?: string;
+  // Set when one side reports that the other didn't turn up.
+  noShow?: "guest" | "driver";
+  // The driver's rating of this passenger, after the trip.
+  driverRating?: number;
   createdAt: string;
 }
 

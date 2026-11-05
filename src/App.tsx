@@ -9,7 +9,7 @@ import { MyRidesPage } from "./pages/MyRidesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DriverOnboardingPage } from "./pages/DriverOnboardingPage";
 import { ChatPage } from "./pages/ChatPage";
-import { ensureSeed, sweepPayments } from "./lib/store";
+import { ensureSeed, sweepLifecycle } from "./lib/store";
 
 ensureSeed();
 
@@ -18,7 +18,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    sweepPayments();
+    sweepLifecycle();
   }, [location.pathname]);
 
   return (
