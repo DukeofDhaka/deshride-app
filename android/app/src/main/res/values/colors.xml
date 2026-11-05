@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- DeshRide brand: flag green with a coral-red accent (matches src/styles.css). -->
+    <color name="colorPrimary">#17463F</color>
+    <color name="colorPrimaryDark">#17463F</color>
+    <color name="colorAccent">#E0573A</color>
+</resources>

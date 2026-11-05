@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk } from './helpers';
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -100,7 +101,7 @@ describe('Tier 4: Real-World Application Scenarios (F4-S1 - F4-S5)', () => {
   });
 
   it('F4-S3: Safety Violation Prevention Flow: Passenger tries to send contact phone number in request message and chat, gets warning banner, system censors phone number, and driver only sees [HIDDEN]', () => {
-    renderApp('/chat/bk-s3');
+    renderApp(`/chat/${bk('s3')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     expect(input).toBeInTheDocument();
     
@@ -110,7 +111,7 @@ describe('Tier 4: Real-World Application Scenarios (F4-S1 - F4-S5)', () => {
     expect(warning).toBeInTheDocument();
     
     // 2. Store-level sendMessage handles censoring
-    const msg = store.sendMessage('bk-s3', 'My phone is 01712345678');
+    const msg = store.sendMessage(bk('s3'), 'My phone is 01712345678');
     expect(msg.text).not.toContain('01712345678');
     expect(msg.text).toContain('[HIDDEN]');
   });

@@ -12,10 +12,34 @@ the pattern Bangladesh Bank's Digital Commerce rules already mandate (see
 
 ## Current state
 
-This is a **local-first prototype**: the full product loop (post → search → request →
-accept-into-escrow → complete → release payment) works end to end, with data stored on
-the device via `src/lib/store.ts`. That module is the single seam for the future
-backend — reimplement its functions against an API and nothing else changes.
+The full product loop works end to end: post → search → request → accept into escrow → chat → complete → release payment. It runs in one of two modes:
+
+- **On-device demo mode** (no setup). Data lives on the phone through `src/lib/store.ts`.
+- **Shared mode** (Supabase). Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and every phone shares rides, bookings, chat and notifications. The server enforces the rules: seat counts, blocks, refunds, and hiding contact details in chat. Setup takes about 10 minutes on Supabase's free plan, and the database stays plain Postgres so it can move to AWS later. See [`docs/backend.md`](docs/backend.md).
+
+Payments are still simulated: escrow states are enforced, but no money moves yet.
+
+## What riders and drivers can do
+
+- **Search** any route in Bangladesh, including pickups and drop-offs at a
+  stopover, which pay a distance-based share of the fare. Search by date and
+  seat count, filter to Instant Book, and set a **ride alert** for a route.
+- **Seat requests:** riders post "I need 2 seats Dhaka → Rajshahi on
+  Friday" and drivers on that route can offer a ride.
+- **Book:** use Instant Book or send a request. A driver has 12 hours (or until
+  departure, if sooner) to answer before the request expires. Riders pay with
+  bKash, Nagad or card into escrow, and every booking gets a receipt.
+- **Trust:**
+  - NID-verified drivers, with profile photos, bios and travel preferences
+  - reviews in both directions, response rate and cancellation history
+  - no-show reports, so a driver no-show is refunded in full
+  - report and block
+  - "Share trip" and one-tap 999 once a seat is confirmed
+- **Drive:** post one ride, a return trip or a repeating series (for example
+  every Thursday), manage requests, and track earnings after DeshRide's 12% fee.
+- **Notifications** for requests, confirmations, reminders and alerts. They are
+  in-app for now; push needs the backend.
+- Bangla first, with a full English toggle.
 
 ## Run locally
 

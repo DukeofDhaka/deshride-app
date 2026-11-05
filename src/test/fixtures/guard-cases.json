@@ -1,0 +1,23 @@
+[
+  { "text": "My number is +8801712345678, call me", "out": "My number is [HIDDEN], call me", "flags": ["contact"] },
+  { "text": "Call 01811223344", "out": "Call [HIDDEN]", "flags": ["contact"] },
+  { "text": "017.1122.3344", "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "০১৭১১২২৩৩৪৪", "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "zero one seven one two three four five six seven eight", "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "oh one seven 1 2 three four 5 6 seven eight", "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "শূন্য এক সাত এক দুই তিন চার পাঁচ ছয় সাত আট", "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "join t.me/deshride_driver", "out": "join [HIDDEN]", "flags": ["contact"] },
+  { "text": "mail me a.b@gmail.com", "out": "mail me [HIDDEN]", "flags": ["contact"] },
+  { "text": "whatsapp me at wa.me/8801711", "out": "[HIDDEN] at [HIDDEN]", "flags": ["contact"] },
+  { "text": "fare is 17000 Tk on 01-08-2026", "out": "fare is 17000 Tk on 01-08-2026", "flags": [] },
+  { "text": "I have one bag and two kids, leaving at seven", "out": "I have one bag and two kids, leaving at seven", "flags": [] },
+  { "text": "এক জন যাত্রী, দুই ব্যাগ", "out": "এক জন যাত্রী, দুই ব্যাগ", "flags": [] },
+  { "text": "Meet at gate 2 at 07:30", "out": "Meet at gate 2 at 07:30", "flags": [] },
+  { "text": "Just bKash me the fare", "out": "Just bKash me the fare", "flags": ["payment"] },
+  { "text": "can I bKash you directly?", "out": "can I bKash you directly?", "flags": ["payment"] },
+  { "text": "আমাকে বিকাশ করে দিন", "out": "আমাকে বিকাশ করে দিন", "flags": ["payment"] },
+  { "text": "ক্যাশ দিলেই হবে", "out": "ক্যাশ দিলেই হবে", "flags": ["payment"] },
+  { "text": "I paid with bKash in the app", "out": "I paid with bKash in the app", "flags": [] },
+  { "text": "345678", "history": ["my no is 01", "712"], "out": "[HIDDEN]", "flags": ["contact"] },
+  { "text": "1500 taka ok", "history": ["01", "712"], "out": "1500 taka ok", "flags": [] }
+]

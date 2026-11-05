@@ -1,10 +1,24 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { DISTRICTS } from "../data/gazetteer";
 import type { LuggageSize, Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
 import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
-import { createRide, getProfile, saveProfile, saveRideDraft, instantBookUnlocked, getStats, INSTANT_BOOK_SEATS } from "../lib/store";
+import {
+  INSTANT_BOOK_SEATS,
+  MAX_SERIES_DATES,
+  containsContactInfo,
+  createRide,
+  createRideSeries,
+  getProfile,
+  getStats,
+  instantBookUnlocked,
+  saveProfile,
+  saveRideDraft,
+  weeklyDates
+} from "../lib/store";
 import { useTranslation } from "../i18n";
+import { todayKey, tomorrowKey } from "../lib/time";
 
 const RULE_OPTIONS = [
   "ruleNoSmoking",
@@ -14,24 +28,30 @@ const RULE_OPTIONS = [
   "ruleWomenFrontSeat"
 ];
 
-function tomorrow(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 export function PostRidePage() {
   const navigate = useNavigate();
   const profile = getProfile();
   const { language, t } = useTranslation();
 
-  const [from, setFrom] = useState<Spot | null>(null);
-  const [to, setTo] = useState<Spot | null>(null);
+  // A driver answering a seat request arrives with the route pre-filled.
+  const [params] = useSearchParams();
+  const districtSpot = (name: string | null): Spot | null => {
+    const d = name ? DISTRICTS.find((p) => p.name === name) : undefined;
+    return d ? { name: d.name, district: d.name, lat: d.lat, lng: d.lng } : null;
+  };
+  const [from, setFrom] = useState<Spot | null>(() => districtSpot(params.get("from")));
+  const [to, setTo] = useState<Spot | null>(() => districtSpot(params.get("to")));
+  const [repeat, setRepeat] = useState<"none" | "weekly" | "dates">("none");
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [repeatUntil, setRepeatUntil] = useState("");
+  const [extraDates, setExtraDates] = useState<string[]>([]);
+  const [extraDraft, setExtraDraft] = useState("");
   const [stops, setStops] = useState<(Spot | null)[]>([]);
   const [withReturn, setWithReturn] = useState(false);
   const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("16:00");
-  const [date, setDate] = useState(tomorrow());
+  const [date, setDate] = useState(params.get("date") ?? tomorrowKey());
   const [time, setTime] = useState("07:30");
   const [seatsTotal, setSeatsTotal] = useState(3);
   const [price, setPrice] = useState<number | "">("");
@@ -53,6 +73,25 @@ export function PostRidePage() {
   const fare = useMemo(() => (km ? suggestedFare(km) : null), [km]);
   const effectivePrice = priceTouched && price !== "" ? Number(price) : (fare?.mid ?? "");
 
+  // All the dates this post will create (one, or a repeating series).
+  const seriesDates = useMemo(() => {
+    if (repeat === "weekly" && repeatUntil && weekdays.length > 0) {
+      return weeklyDates(date, repeatUntil, weekdays);
+    }
+    if (repeat === "dates") {
+      return [...new Set([date, ...extraDates])].sort().slice(0, MAX_SERIES_DATES);
+    }
+    return [date];
+  }, [repeat, repeatUntil, weekdays, date, extraDates]);
+
+  function shortDate(key: string) {
+    return new Date(`${key}T12:00:00`).toLocaleDateString(language === "bn" ? "bn-BD" : "en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short"
+    });
+  }
+
   function toggleRule(rule: string) {
     setRules((current) =>
       current.includes(rule) ? current.filter((r) => r !== rule) : [...current, rule]
@@ -72,56 +111,60 @@ export function PostRidePage() {
     event.preventDefault();
     setError(null);
 
-    const testName = typeof globalThis !== "undefined" && (globalThis as any).expect?.getState()?.currentTestName;
-    const isLegacyOnboardingTest = testName && (testName.includes("F2-B4") || testName.includes("F2-B5"));
-
-    if (!isLegacyOnboardingTest) {
-      if (!from || !to) {
-        setError(t("errorPickBoth"));
-        return;
-      }
-      if (from.district === to.district && Math.abs(from.lat - to.lat) < 0.05 && Math.abs(from.lng - to.lng) < 0.05) {
-        setError(t("errorSamePlace"));
-        return;
-      }
-      if (!driverName.trim()) {
-        setError(t("errorDriverName"));
-        return;
-      }
-      if (!effectivePrice || Number(effectivePrice) <= 0) {
-        setError(t("errorFare"));
-        return;
-      }
-      if (!car.trim()) {
-        setError(t("errorCar"));
-        return;
-      }
+    if (!from || !to) {
+      setError(t("errorPickBoth"));
+      return;
     }
+    if (from.district === to.district && Math.abs(from.lat - to.lat) < 0.05 && Math.abs(from.lng - to.lng) < 0.05) {
+      setError(t("errorSamePlace"));
+      return;
+    }
+    if (!driverName.trim()) {
+      setError(t("errorDriverName"));
+      return;
+    }
+    if (!effectivePrice || Number(effectivePrice) <= 0) {
+      setError(t("errorFare"));
+      return;
+    }
+    if (!car.trim()) {
+      setError(t("errorCar"));
+      return;
+    }
+    if (Date.parse(`${date}T${time}:00`) <= Date.now()) {
+      setError(t("errorPastTime"));
+      return;
+    }
+
+    if (repeat !== "none" && seriesDates.length < 2) {
+      setError(t("errorSeriesDates"));
+      return;
+    }
+    if (driverName.trim() !== profile.name) {
+      saveProfile({ ...profile, name: driverName.trim() });
+    }
+    const series = seriesDates.length > 1 ? seriesDates : undefined;
 
     // First-time drivers finish their driver profile before the ride goes live.
     if (!profile.driver) {
       const cleanStops = stops.filter((s): s is Spot => Boolean(s));
       const departure = new Date(`${date}T${time}:00`).toISOString();
       const rideInput = {
-        from: from || { name: "", district: "", lat: 0, lng: 0 },
-        to: to || { name: "", district: "", lat: 0, lng: 0 },
+        from,
+        to,
         stops: cleanStops.length > 0 ? cleanStops : undefined,
         departure,
         seatsTotal,
-        pricePerSeat: Number(effectivePrice) || 0,
+        pricePerSeat: Number(effectivePrice),
         car: car.trim(),
         luggage,
         rules,
         note: note.trim() || undefined,
         instantBook
       };
-      saveRideDraft(rideInput);
+      saveRideDraft({ ...rideInput, seriesDates: series });
       navigate("/driver-onboarding");
       return;
-    }
-
-    if (driverName.trim() !== profile.name) {
-      saveProfile({ ...profile, name: driverName.trim() });
     }
 
     const departure = new Date(`${date}T${time}:00`).toISOString();
@@ -139,6 +182,12 @@ export function PostRidePage() {
       note: note.trim() || undefined,
       instantBook
     };
+
+    if (series) {
+      createRideSeries(rideInput, series);
+      navigate("/rides");
+      return;
+    }
 
     const ride = createRide(rideInput);
     if (withReturn && returnDate) {
@@ -218,7 +267,7 @@ export function PostRidePage() {
                 className="field__input"
                 type="date"
                 value={date}
-                min={new Date().toISOString().slice(0, 10)}
+                min={todayKey()}
                 onClick={() => openCalendar(dateRef)}
                 onFocus={() => openCalendar(dateRef)}
                 onChange={(e) => setDate(e.target.value)}
@@ -345,13 +394,12 @@ export function PostRidePage() {
               onChange={(e) => {
                 const val = e.target.value;
                 setNote(val);
-                const phoneRegex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
-                setShowWarning(phoneRegex.test(val));
+                setShowWarning(containsContactInfo(val));
               }}
             />
             {showWarning && (
               <div className="banner banner--warn" style={{ marginTop: "8px" }}>
-                {language === "bn" ? "নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না।" : "Warning: Sharing phone numbers in public fields is not allowed."}
+                {t("phoneWarning")}
               </div>
             )}
           </div>
@@ -401,6 +449,100 @@ export function PostRidePage() {
             <span>{t('returnTripLabel')}</span>
           </label>
 
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={repeat !== "none"}
+              onChange={(e) => setRepeat(e.target.checked ? "weekly" : "none")}
+            />
+            <span>{t("repeatRide")}</span>
+          </label>
+
+          {repeat !== "none" && (
+            <div className="repeat-box">
+              <div className="seg-control" role="radiogroup" aria-label={t("repeatRide")}>
+                {(["weekly", "dates"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={repeat === mode}
+                    className={`pill pill--toggle${repeat === mode ? " pill--active" : ""}`}
+                    onClick={() => setRepeat(mode)}
+                  >
+                    {t(mode === "weekly" ? "repeatWeekly" : "repeatPickDates")}
+                  </button>
+                ))}
+              </div>
+              {repeat === "weekly" ? (
+                <>
+                  <div className="date-chips" role="group" aria-label={t("repeatOnDays")}>
+                    {[0, 1, 2, 3, 4, 5, 6].map((d) => {
+                      const label = new Date(2026, 0, 4 + d).toLocaleDateString(language === "bn" ? "bn-BD" : "en-GB", { weekday: "short" });
+                      const on = weekdays.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          aria-pressed={on}
+                          className={`pill pill--toggle${on ? " pill--active" : ""}`}
+                          onClick={() => setWeekdays((cur) => (on ? cur.filter((x) => x !== d) : [...cur, d]))}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="field">
+                    <label className="field__label" htmlFor="post-repeat-until">
+                      {t("repeatUntil")}
+                    </label>
+                    <input
+                      id="post-repeat-until"
+                      type="date"
+                      className="field__input"
+                      value={repeatUntil}
+                      min={date}
+                      onChange={(e) => setRepeatUntil(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="field">
+                  <label className="field__label" htmlFor="post-extra-date">
+                    {t("addDate")}
+                  </label>
+                  <div className="field__control">
+                    <input
+                      id="post-extra-date"
+                      type="date"
+                      className="field__input"
+                      value={extraDraft}
+                      min={todayKey()}
+                      onChange={(e) => setExtraDraft(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      disabled={!extraDraft || seriesDates.length >= MAX_SERIES_DATES}
+                      onClick={() => {
+                        setExtraDates((cur) => [...new Set([...cur, extraDraft])]);
+                        setExtraDraft("");
+                      }}
+                    >
+                      {t("add")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className="field__hint">
+                {seriesDates.length > 1
+                  ? t("seriesPreview", { count: seriesDates.length, dates: seriesDates.map(shortDate).join(", ") })
+                  : t("seriesNeedsDates", { max: MAX_SERIES_DATES })}
+              </p>
+            </div>
+          )}
+
           {withReturn && (
             <div className="search-card__row">
               <div className="field">
@@ -434,9 +576,9 @@ export function PostRidePage() {
             </div>
           )}
 
-          {error && <p className="form-error">Error / ভুল: {error}</p>}
+          {error && <p className="form-error" role="alert">{t("errorPrefix")} {error}</p>}
 
-          <button className="primary-button primary-button--full" type="submit">
+          <button className="cta-button cta-button--full" type="submit">
             {t("postRideSubmit")}
           </button>
         </form>

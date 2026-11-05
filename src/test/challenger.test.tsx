@@ -23,7 +23,6 @@ describe('Challenger Adversarial Security and State Validation Test Suite', () =
 
   // 1. Regex Bypasses
   it('Adversarial: Bangladeshi phone number regex censoring bypasses', () => {
-    // These formats bypass the current regex and remain uncensored
     const censoredCases = [
       '017.1122.3344',
       '017_1122_3344',
@@ -32,10 +31,12 @@ describe('Challenger Adversarial Security and State Validation Test Suite', () =
       '01211223344',
       '017 . 112 . 233 . 44',
       '017\u200B1122\u200B3344',
-      '017\u200D1122\u200D3344'
+      '017\u200D1122\u200D3344',
+      // Spelled-out numbers used to slip through; the contact guard now catches them.
+      'zero one seven one one two two three three four four'
     ];
     const uncensoredCases = [
-      'zero one seven one one two two three three four four'
+      'fare is 17000 Tk, leaving 01-08-2026 at seven'
     ];
 
     censoredCases.forEach((text) => {

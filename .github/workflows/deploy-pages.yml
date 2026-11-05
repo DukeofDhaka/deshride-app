@@ -32,6 +32,11 @@ jobs:
 
       - name: Build app
         run: npm run build
+        # Optional: with these repo secrets set, the app shares rides through
+        # Supabase; without them it builds in on-device demo mode.
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

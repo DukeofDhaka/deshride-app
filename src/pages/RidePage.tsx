@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { PAYMENT_METHODS, getPaymentMethod, type PaymentMethodId } from "../data/paymentMethods";
-import { estimateDuration, formatBDT, roadKm } from "../lib/geo";
+import { estimateDuration, formatBDT, routeKm, segmentFare, stopTimes } from "../lib/geo";
 import {
+  containsContactInfo,
   getProfile,
   getRide,
+  liveDriverRating,
   myBookingForRide,
   pendingRequests,
   requestBooking,
+  routeIndices,
   saveProfile,
   seatsLeft
 } from "../lib/store";
 import { useTranslation } from "../i18n";
-
-function localeFor(language: string): string {
-  return language === "bn" ? "bn-BD" : "en-GB";
-}
+import { Icon, type IconName } from "../components/Icons";
+import { RouteTimeline } from "../components/RouteTimeline";
+import { TripSafety } from "../components/TripSafety";
+import { localeFor, timeOf } from "../components/RideCard";
+import { DriverProfileCard } from "../components/DriverProfileCard";
+import { PayInAppNotice } from "../components/PayInAppNotice";
 
 function formatDeparture(iso: string, language: string): string {
   return new Date(iso).toLocaleString(localeFor(language), {
@@ -26,6 +31,14 @@ function formatDeparture(iso: string, language: string): string {
     minute: "2-digit"
   });
 }
+
+const RULE_ICONS: Record<string, IconName> = {
+  ruleNoSmoking: "nosmoke",
+  ruleHighwayAc: "snow",
+  ruleMusicOk: "music",
+  ruleMaxThreeBack: "seat",
+  ruleWomenFrontSeat: "women"
+};
 
 function luggageLabel(luggage: string, t: (key: string) => string): string {
   const keyByValue: Record<string, string> = {
@@ -43,16 +56,13 @@ export function RidePage() {
   const justPosted = params.get("posted") === "1";
 
   const { language, t } = useTranslation();
+  const lang = language === "bn" ? "bn" : "en";
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    const handleStateChange = () => {
-      setRefresh((n) => n + 1);
-    };
+    const handleStateChange = () => setRefresh((n) => n + 1);
     window.addEventListener("deshride-state-change", handleStateChange);
-    return () => {
-      window.removeEventListener("deshride-state-change", handleStateChange);
-    };
+    return () => window.removeEventListener("deshride-state-change", handleStateChange);
   }, []);
   const [seats, setSeats] = useState(1);
   const [payMethod, setPayMethod] = useState<PaymentMethodId>("bkash");
@@ -81,9 +91,20 @@ export function RidePage() {
   const myBooking = myBookingForRide(ride.id);
   const isMine = ride.driver.id === profile.id && !myBooking;
   const left = seatsLeft(ride);
-  const km = roadKm(ride.from, ride.to);
+  const rating = liveDriverRating(ride);
+  const route = [ride.from, ...(ride.stops ?? []), ride.to];
+  const km = routeKm(route);
   const requests = isMine ? pendingRequests(ride.id) : [];
   void refresh;
+
+  // A search for part of the route (e.g. Cumilla → Chattogram on a Dhaka →
+  // Chattogram ride) books just that stretch at a proportional fare.
+  const wanted = routeIndices(ride, params.get("from") ?? undefined, params.get("to") ?? undefined);
+  const segment =
+    wanted && (wanted.pickupIdx > 0 || wanted.dropoffIdx < route.length - 1) ? wanted : null;
+  const farePerSeat = segment ? segmentFare(ride, segment.pickupIdx, segment.dropoffIdx) : ride.pricePerSeat;
+
+  const times = stopTimes(ride);
 
   function handleRequest(event: React.FormEvent) {
     event.preventDefault();
@@ -99,104 +120,115 @@ export function RidePage() {
     if (!profile.name && guestName.trim()) {
       saveProfile({ ...profile, name: guestName.trim() });
     }
-    requestBooking(ride!.id, seats, payMethod, message);
+    try {
+      requestBooking(ride!.id, seats, payMethod, message, segment ?? undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
     setRefresh((n) => n + 1);
   }
 
+  const showBookBar = !isMine && !myBooking && left > 0;
+  const confirmed = myBooking?.status === "accepted";
+
   return (
-    <section className="page">
+    <section className={`page page--ride${showBookBar ? " page--with-bookbar" : ""}`}>
       {justPosted && (
         <div className="banner banner--good">
           {t("rideLive", { from: ride.from.district, to: ride.to.district })}
         </div>
       )}
 
-      <div className="detail-hero">
-        <div>
-          <p className="section-kicker">{t("rideDetails")}</p>
-          <h1>
-            {ride.from.name} → {ride.to.name}
-          </h1>
-          <p className="hero__lead">
-            {formatDeparture(ride.departure, language)} · ~{km} km · {estimateDuration(km)}
-            {ride.stops && ride.stops.length > 0 && (
-              <> · {t('via')} {ride.stops.map((s) => s.name).join(" → ")}</>
-            )}
-          </p>
-          {ride.instantBook && (
-            <p>
-              <span className="chip chip--flash">{t('instantBook')}</span>{" "}
-              <span className="detail-note">{t('instantBookHint')}</span>
-            </p>
-          )}
-        </div>
-        <div className="detail-hero__stats">
-          <div>
-            <strong>{left}</strong>
-            <span>{t("seatsLeft")}</span>
-          </div>
-          <div>
-            <strong>{ride.driver.rating ? `${ride.driver.rating.toFixed(1)}★` : t("newDriver")}</strong>
-            <span>{t("driverRating")}</span>
-          </div>
-          <div>
-            <strong>{formatBDT(ride.pricePerSeat)}</strong>
-            <span>{t("perSeat")}</span>
-          </div>
-        </div>
+      <div className="ride-head">
+        <span className="section-kicker">{t("rideDetails")}</span>
+        <h1>
+          {ride.from.name} → {ride.to.name}
+        </h1>
+        <p className="hero__lead">
+          {formatDeparture(ride.departure, language)} · {t("kmApprox", { km: km.toLocaleString(localeFor(language)) })} ·{" "}
+          {estimateDuration(km, lang)}
+        </p>
       </div>
 
       <div className="detail-grid">
         <div className="detail-main">
           <div className="detail-panel">
             <h2>{t("pickupDropoff")}</h2>
-            <ul className="panel-list">
-              <li>
-                <strong>{t("pickupDash", { place: ride.from.name })}</strong>{" "}
-                {ride.from.note || t("sharedAfterBooking")}
-              </li>
-              <li>
-                <strong>{t("dropoffDash", { place: ride.to.name })}</strong>{" "}
-                {ride.to.note || t("sharedAfterBooking")}
-              </li>
-            </ul>
+            <RouteTimeline
+              size="full"
+              stops={route.map((spot, i) => ({
+                time: timeOf(times[i], language),
+                place: spot.name,
+                note: spot.note || (i === 0 || i === route.length - 1 ? t("sharedAfterBooking") : undefined),
+                badge:
+                  segment && i === segment.pickupIdx
+                    ? t("yourPickup")
+                    : segment && i === segment.dropoffIdx
+                      ? t("yourDropoff")
+                      : undefined
+              }))}
+            />
           </div>
+
+          <div className="facts-row">
+            <div>
+              <strong>{left.toLocaleString(localeFor(language))}</strong>
+              <span>{t("seatsLeftShort")}</span>
+            </div>
+            <div>
+              <strong>{rating ? `${rating.toFixed(1)}★` : t("newDriver")}</strong>
+              <span>{t("tripsCount", { count: ride.driver.trips })}</span>
+            </div>
+            <div>
+              <strong>{formatBDT(farePerSeat, lang)}</strong>
+              <span>{segment ? t("yourSegment") : t("perSeat")}</span>
+            </div>
+          </div>
+
+          <DriverProfileCard ride={ride} showPlate={confirmed} />
+
+          {ride.note && (
+            <p className="driver-quote">
+              <strong>{ride.driver.name.split(" ")[0]}:</strong> “{ride.note}”
+            </p>
+          )}
 
           <div className="detail-panel">
             <h2>{t("tripRules")}</h2>
-            <ul className="panel-list">
-              <li>{t("carPrefix")} {ride.car}</li>
-              <li>{t("luggagePrefix")} {luggageLabel(ride.luggage, t)}</li>
+            <ul className="rule-list">
+              <li>
+                <Icon name="car" />
+                {ride.car}
+              </li>
+              <li>
+                <Icon name="bag" />
+                {t("luggagePrefix")} {luggageLabel(ride.luggage, t)}
+              </li>
               {ride.rules.map((rule) => (
-                <li key={rule}>{t(rule)}</li>
+                <li key={rule}>
+                  <Icon name={RULE_ICONS[rule] ?? "tick"} />
+                  {t(rule)}
+                </li>
               ))}
             </ul>
-            {ride.note && <p className="detail-note">{ride.note}</p>}
+            {ride.instantBook && (
+              <p className="detail-note">
+                <span className="chip chip--flash">
+                  <Icon name="bolt" size={12} /> {t("instantBook")}
+                </span>{" "}
+                {t("instantBookHint")}
+              </p>
+            )}
           </div>
         </div>
 
         <aside className="detail-aside">
-          <div className="driver-card">
-            <div className="avatar avatar--large" style={{ backgroundColor: ride.driver.accent }}>
-              {ride.driver.name
-                .split(" ")
-                .map((part) => part[0])
-                .join("")
-                .slice(0, 2)}
-            </div>
-            <h2>{ride.driver.name}</h2>
-            <p>
-              {ride.driver.rating
-                ? `${ride.driver.rating.toFixed(1)}★ · ${t("tripsCount", { count: ride.driver.trips })}`
-                : t("newDriverOnDeshRide")}
-            </p>
-          </div>
-
           {isMine ? (
             <div className="booking-card">
               <div>
                 <span className="booking-card__label">{t("yourRide")}</span>
-                <strong>{formatBDT(ride.pricePerSeat)}</strong>
+                <strong>{formatBDT(ride.pricePerSeat, lang)}</strong>
               </div>
               <p>
                 {requests.length > 0
@@ -211,9 +243,7 @@ export function RidePage() {
             <div className="booking-card">
               <div>
                 <span className="booking-card__label">{t("yourRequest")}</span>
-                <strong>
-                  {t("seatsCount", { count: myBooking.seats })}
-                </strong>
+                <strong>{t("seatsCount", { count: myBooking.seats })}</strong>
               </div>
               <p>
                 {t("status")}{" "}
@@ -230,23 +260,17 @@ export function RidePage() {
                     ? t("waitingForDriver")
                     : myBooking.status === "accepted"
                       ? t("confirmedYouIn")
-                      : myBooking.status}
+                      : t("notAccepted")}
                 </span>
               </p>
               <p>{t(getPaymentMethod(myBooking.payMethod).confirmationNoteKey)}</p>
-              {myBooking.status === "accepted" && ride.driver.phone && (
-                <p>
-                  {t("callDriver", { name: ride.driver.name })}{" "}
-                  <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
-                    {ride.driver.phone}
-                  </a>
-                </p>
-              )}
-              {myBooking.status === "accepted" && ride.status !== "completed" && (
+              <PayInAppNotice />
+              {confirmed && ride.status === "active" && (
                 <Link className="primary-button primary-button--full" to={`/chat/${myBooking.id}`}>
-                  Message
+                  {t("message")}
                 </Link>
               )}
+              {confirmed && ride.status === "active" && <TripSafety ride={ride} />}
               <Link className="secondary-link secondary-link--button" to="/rides">
                 {t("viewInMyRides")}
               </Link>
@@ -260,11 +284,20 @@ export function RidePage() {
               <p>{t("allSeatsTaken")}</p>
             </div>
           ) : (
-            <form className="booking-card" onSubmit={handleRequest}>
+            <form className="booking-card" id="book" onSubmit={handleRequest}>
               <div>
                 <span className="booking-card__label">{t("requestSeats")}</span>
-                <strong>{formatBDT(ride.pricePerSeat * seats)}</strong>
+                <strong>{formatBDT(farePerSeat * seats, lang)}</strong>
               </div>
+              {segment && (
+                <p className="segment-note">
+                  {t("segmentNote", {
+                    from: route[segment.pickupIdx].name,
+                    to: route[segment.dropoffIdx].name,
+                    price: formatBDT(farePerSeat, lang)
+                  })}
+                </p>
+              )}
 
               {!profile.name && (
                 <div className="field">
@@ -301,28 +334,23 @@ export function RidePage() {
 
               <div className="field">
                 <label className="field__label" htmlFor="req-msg">
-                  {t('msgToDriver')}
+                  {t("msgToDriver")}
                 </label>
                 <textarea
                   id="req-msg"
                   className="field__input field__input--area"
                   value={message}
-                  placeholder={t('msgPlaceholder')}
+                  placeholder={t("msgPlaceholder")}
                   onChange={(e) => {
                     const val = e.target.value;
                     setMessage(val);
-                    const phoneRegex = /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/gi;
-                    setShowMsgWarning(phoneRegex.test(val));
+                    setShowMsgWarning(containsContactInfo(val));
                   }}
                 />
-                {showMsgWarning && (
-                  <div className="banner banner--warn" style={{ marginTop: "8px" }}>
-                    {language === "bn" ? "নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না।" : "Warning: Sharing phone numbers in public fields is not allowed."}
-                  </div>
-                )}
+                {showMsgWarning && <div className="banner banner--warn">{t("phoneWarning")}</div>}
               </div>
 
-              <div className="pay-options" role="radiogroup" aria-label="Payment method">
+              <div className="pay-options" role="radiogroup" aria-label={t("paymentMethodLabel")}>
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.id}
@@ -340,16 +368,36 @@ export function RidePage() {
 
               {error && <p className="form-error">{error}</p>}
 
-              <button className="primary-button primary-button--full" type="submit">
-                {ride.instantBook ? t('bookNow') : t('requestToBook')}
+              <PayInAppNotice />
+              <button className="cta-button cta-button--full" type="submit">
+                {ride.instantBook && <Icon name="bolt" size={16} />}
+                {ride.instantBook ? t("bookNow") : t("requestToBook")}
               </button>
-              <p className="detail-note">
-                {t("prototypePaymentNote")}
-              </p>
+              <p className="detail-note">{t("prototypePaymentNote")}</p>
             </form>
           )}
         </aside>
       </div>
+
+      {showBookBar && (
+        <div className="bookbar">
+          <div>
+            <strong>{formatBDT(farePerSeat * seats, lang)}</strong>
+            <span>{t("seatsForPrice", { seats, method: getPaymentMethod(payMethod).label })}</span>
+          </div>
+          <button
+            type="button"
+            className="cta-button"
+            onClick={() => {
+              const form = document.getElementById("book");
+              form?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+              form?.querySelector<HTMLElement>("select, input, textarea")?.focus({ preventScroll: true });
+            }}
+          >
+            {t("bookSeat")}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

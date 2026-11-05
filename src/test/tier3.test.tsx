@@ -4,6 +4,7 @@ import App from '../App';
 import { TranslationProvider } from '../i18n';
 import { MemoryRouter } from 'react-router-dom';
 import * as store from '../lib/store';
+import { bk } from './helpers';
 
 function renderApp(initialRoute = '/') {
   return render(
@@ -53,7 +54,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     const ride = store.createRide({
       from: { name: 'Dhaka', district: 'Dhaka', lat: 23.75, lng: 90.38 },
       to: { name: 'Chattogram', district: 'Chattogram', lat: 22.36, lng: 91.83 },
-      departure: new Date().toISOString(),
+      departure: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
       seatsTotal: 3,
       pricePerSeat: 1500,
       car: 'Toyota Axio',
@@ -66,9 +67,10 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     expect(booking.status).toBe('pending');
     
     // View ride page
-    renderApp(`/ride/${ride.id}`);
+    const first = renderApp(`/ride/${ride.id}`);
     let msgBtn = screen.queryByText(/Message/i) || screen.queryByRole('button', { name: /Message/i });
     expect(msgBtn === null || (msgBtn as HTMLButtonElement).disabled || msgBtn.getAttribute('aria-disabled')).toBeTruthy();
+    first.unmount();
     
     // Accept booking
     store.updateBookingStatus(booking.id, 'accepted');
@@ -107,7 +109,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
   });
 
   it('F3-C4: Phone number typed in ChatPage input triggers warning banner, and upon sending is saved in store in censored format', () => {
-    renderApp('/chat/bk-c4');
+    renderApp(`/chat/${bk('c4')}`);
     const input = document.querySelector('input[type="text"]') || screen.queryByPlaceholderText(/message/i);
     expect(input).toBeInTheDocument();
     
@@ -116,7 +118,7 @@ describe('Tier 3: Cross-Feature Combinations (F3-C1 - F3-C7)', () => {
     expect(banner).toBeInTheDocument();
     
     // Store send
-    const msg = store.sendMessage('bk-c4', 'My phone is 01811223344');
+    const msg = store.sendMessage(bk('c4'), 'My phone is 01811223344');
     expect(msg.text).not.toContain('01811223344');
     expect(msg.text).toContain('[HIDDEN]');
   });
