@@ -12,10 +12,12 @@ the pattern Bangladesh Bank's Digital Commerce rules already mandate (see
 
 ## Current state
 
-This is a **local-first prototype**: the full product loop (post → search → request →
-accept-into-escrow → complete → release payment) works end to end, with data stored on
-the device via `src/lib/store.ts`. That module is the single seam for the future
-backend — reimplement its functions against an API and nothing else changes.
+The full product loop works end to end: post → search → request → accept into escrow → chat → complete → release payment. It runs in one of two modes:
+
+- **On-device demo mode** (no setup). Data lives on the phone through `src/lib/store.ts`.
+- **Shared mode** (Supabase). Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` and every phone shares rides, bookings, chat and notifications. The server enforces the rules: seat counts, blocks, refunds, and hiding contact details in chat. Setup takes about 10 minutes on Supabase's free plan, and the database stays plain Postgres so it can move to AWS later. See [`docs/backend.md`](docs/backend.md).
+
+Payments are still simulated: escrow states are enforced, but no money moves yet.
 
 ## What riders and drivers can do
 

@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
-import { alertMatches, listUpcomingRides, markAlertRidesSeen, recentSearches, rememberSearch } from "../lib/store";
+import {
+  alertMatches,
+  dataVersion,
+  listUpcomingRides,
+  markAlertRidesSeen,
+  recentSearches,
+  rememberSearch,
+  useStoreValue
+} from "../lib/store";
 import { RideCard } from "../components/RideCard";
 import { Icon, type IconName } from "../components/Icons";
 import { findNearest, type SearchOrigin } from "../data/gazetteer";
@@ -82,10 +90,13 @@ export function HomePage() {
       { maximumAge: 600000, timeout: 8000 }
     );
   }, []);
+  // Re-read when the shared data changes (another phone posts a ride).
+  const version = useStoreValue(dataVersion);
   const previous = useMemo(() => recentSearches(), []);
-  const alerts = useMemo(() => alertMatches(), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const alerts = useMemo(() => alertMatches(), [version]);
   const alertRideCount = alerts.reduce((n, m) => n + m.rides.length, 0);
-  const upcoming = useMemo(() => listUpcomingRides(), []);
+  const upcoming = useMemo(() => listUpcomingRides(), [version]);
   const popular = useMemo(() => {
     const routes = new Map<string, { from: string; to: string; n: number; min: number }>();
     for (const r of upcoming) {

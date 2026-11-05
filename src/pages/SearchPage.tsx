@@ -6,6 +6,7 @@ import {
   addAlert,
   findAlert,
   liveDriverRating,
+  dataVersion,
   removeAlert,
   routeIndices,
   searchRides,
@@ -22,14 +23,18 @@ export function SearchPage() {
   const date = params.get("date") ?? undefined;
   const seats = Math.max(1, Number(params.get("seats")) || 1);
 
+  const version = useStoreValue(dataVersion);
   const exact = useMemo(
     () => searchRides({ fromDistrict, toDistrict, date, seats }),
-    [fromDistrict, toDistrict, date, seats]
+    // version: re-run when rides arrive from the server
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fromDistrict, toDistrict, date, seats, version]
   );
   // When the day has nothing, show the same corridor on other dates.
   const nearby = useMemo(
     () => (exact.length === 0 ? searchRides({ fromDistrict, toDistrict, seats }) : []),
-    [exact.length, fromDistrict, toDistrict, seats]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [exact, fromDistrict, toDistrict, seats]
   );
 
   const base = exact.length > 0 ? exact : nearby;

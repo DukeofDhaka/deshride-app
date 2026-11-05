@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { AppNotification } from "../lib/store";
-import { getRide, markNotificationsRead, myNotifications } from "../lib/store";
+import { dataVersion, getRide, markNotificationsRead, myNotifications, useStoreValue } from "../lib/store";
 import { useTranslation } from "../i18n";
 import { Icon, type IconName } from "../components/Icons";
 
@@ -39,10 +39,12 @@ function linkFor(n: AppNotification): string {
 export function NotificationsPage() {
   const { language, t } = useTranslation();
   // Snapshot before marking read so this visit still highlights what's new.
-  const items = useMemo(() => myNotifications(), []);
+  const version = useStoreValue(dataVersion);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const items = useMemo(() => myNotifications(), [version]);
   useEffect(() => {
     markNotificationsRead();
-  }, []);
+  }, [items.length]);
 
   return (
     <section className="page">

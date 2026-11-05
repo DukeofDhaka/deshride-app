@@ -3,6 +3,8 @@
 // merged into the main dictionaries at startup.
 export const extraStrings: { bn: Record<string, string>; en: Record<string, string> } = {
   bn: {
+    offlineBanner: "অফলাইন — সংযোগ ফিরলে পরিবর্তনগুলো সিঙ্ক হবে।",
+    syncErrorPrefix: "হলো না:",
     payInAppNotice: "সব পেমেন্ট দেশরাইড অ্যাপে করুন। ড্রাইভারকে সরাসরি নগদ বা বিকাশ দেবেন না — অ্যাপের বাইরে দিলে রিফান্ড ও সুরক্ষা পাবেন না।",
     payInAppShort: "ভাড়া শুধু অ্যাপে — সরাসরি নগদ/বিকাশ নয়।",
     chatPinnedNotice: "সব পেমেন্ট দেশরাইড অ্যাপে করুন। ড্রাইভারকে সরাসরি নগদ বা বিকাশ দেবেন না — অ্যাপের বাইরে দিলে রিফান্ড ও সুরক্ষা পাবেন না। ফোন নম্বর ও যোগাযোগের তথ্য এখানে লুকানো থাকে।",
@@ -209,6 +211,8 @@ export const extraStrings: { bn: Record<string, string>; en: Record<string, stri
     notif_bookingCancelled: "একজন যাত্রী বাতিল করেছেন · {route}"
   },
   en: {
+    offlineBanner: "Offline — your changes will sync when you're back online.",
+    syncErrorPrefix: "That didn't go through:",
     payInAppNotice: "Pay only through DeshRide. Never pay the driver directly in cash or bKash — off-app payments lose refunds and protection.",
     payInAppShort: "Fares are paid in the app only — never directly in cash or bKash.",
     chatPinnedNotice: "Pay only through DeshRide. Never pay the driver directly in cash or bKash — off-app payments lose refunds and protection. Phone numbers and contact details are hidden here.",

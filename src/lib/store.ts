@@ -61,12 +61,59 @@ function notify() {
 
 function save(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
+  version += 1;
   notify();
   try {
     window.dispatchEvent(new Event("deshride-state-change"));
   } catch (e) {
     // ignore
   }
+}
+
+// --- server sync seam ---------------------------------------------------------
+// With a backend configured (src/lib/backend/sync.ts), every write below is
+// applied to this local cache straight away and then sent to the server,
+// which is the authority. If the server refuses, the cache is re-pulled and
+// a "deshride-sync-error" event carries the reason to the UI.
+
+export interface RemoteHooks {
+  call(op: string, args: Record<string, unknown>): Promise<unknown>;
+  refresh(): void;
+}
+
+let remote: RemoteHooks | null = null;
+
+export function setRemote(hooks: RemoteHooks | null) {
+  remote = hooks;
+}
+
+export function isOnline(): boolean {
+  return remote !== null;
+}
+
+function pushRemote(op: string, args: Record<string, unknown> = {}) {
+  if (!remote) return;
+  const r = remote;
+  r.call(op, args).catch((err: unknown) => {
+    r.refresh();
+    const detail = err instanceof Error ? err.message : String(err);
+    try {
+      window.dispatchEvent(new CustomEvent("deshride-sync-error", { detail }));
+    } catch {
+      // no window (tests)
+    }
+  });
+}
+
+// The sync layer writes server rows into the cache through this.
+export function replaceCache(key: string, value: unknown) {
+  save(key, value);
+}
+
+let version = 0;
+// Bumps on every cache write; pages memoising store reads depend on it.
+export function dataVersion(): number {
+  return version;
 }
 
 function uid(prefix: string): string {
@@ -95,10 +142,12 @@ function myId(): string | undefined {
 }
 
 export function saveProfile(profile: Profile) {
-  save(KEYS.profile, {
+  const clean = {
     ...profile,
     bio: profile.bio ? censorPhoneNumbers(profile.bio.trim()).slice(0, BIO_MAX) : undefined
-  });
+  };
+  save(KEYS.profile, clean);
+  pushRemote("upsert_my_profile", { p: clean });
 }
 
 export const BIO_MAX = 200;
@@ -220,6 +269,23 @@ export function createRide(input: NewRide): Ride {
   };
   saveRides([...allRides(), ride]);
   notifyAlertWatchers(ride);
+  pushRemote("create_ride", {
+    p: {
+      id: ride.id,
+      from: ride.from,
+      to: ride.to,
+      stops: ride.stops ?? [],
+      departure: ride.departure,
+      seatsTotal: ride.seatsTotal,
+      pricePerSeat: ride.pricePerSeat,
+      car: ride.car,
+      luggage: ride.luggage,
+      rules: ride.rules,
+      note: ride.note,
+      instantBook: ride.instantBook,
+      seriesId: ride.seriesId
+    }
+  });
   return ride;
 }
 
@@ -317,6 +383,7 @@ export function cancelRide(id: string) {
         : b
     )
   );
+  pushRemote("cancel_ride", { ride_id: id });
 }
 
 export function myRides(): Ride[] {
@@ -353,6 +420,7 @@ export function completeRide(id: string) {
     pushNotification({ userId: b.guestId, kind: "rateTrip", bookingId: b.id, rideId: id });
   }
   if (ride && seatsSold > 0) pushNotification({ userId: ride.driver.id, kind: "ratePassengers", rideId: id });
+  pushRemote("complete_ride", { ride_id: id });
 }
 
 // Rider taps "confirm ride" — releases their fare to the driver right away.
@@ -364,12 +432,15 @@ export function confirmRelease(bookingId: string) {
         : b
     )
   );
+  pushRemote("confirm_release_and_rate", { booking_id: bookingId, stars: null });
 }
 
 // Runs on every navigation (App.tsx). Expires unanswered requests,
 // auto-releases fares whose 24-hour confirmation window has passed, and
 // queues "trip tomorrow" reminders. A backend would run this on a schedule.
 export function sweepLifecycle(now = Date.now()) {
+  // Online, the server runs this on a schedule (app.sweep_lifecycle).
+  if (remote) return;
   const bookings = allBookings();
   const expired: Booking[] = [];
   let changed = false;
@@ -440,6 +511,7 @@ export function cancelMyBooking(bookingId: string): string | null {
       };
     })
   );
+  pushRemote("cancel_my_booking", { booking_id: bookingId });
   return null;
 }
 
@@ -538,6 +610,17 @@ export function requestBooking(
   };
   saveBookings([...allBookings(), booking]);
   pushNotification({ userId: ride.driver.id, kind: "requestNew", bookingId: booking.id, rideId: ride.id });
+  pushRemote("request_booking", {
+    p: {
+      id: booking.id,
+      rideId,
+      seats,
+      payMethod,
+      message: booking.message,
+      pickupIdx: booking.pickupIdx,
+      dropoffIdx: booking.dropoffIdx
+    }
+  });
   return booking;
 }
 
@@ -602,6 +685,7 @@ export function updateBookingStatus(id: string, status: BookingStatus): string |
       rideId: booking.rideId
     });
   }
+  if (status === "accepted" || status === "declined") pushRemote("update_booking_status", { booking_id: id, new_status: status });
   return null;
 }
 
@@ -635,6 +719,8 @@ function departureAt(daysFromNow: number, hour: number, minute: number): string 
 }
 
 export function ensureSeed() {
+  // Online, demo rides come from the server (supabase/seed.sql).
+  if (remote) return;
   if (localStorage.getItem(KEYS.rides)) return;
   const seedRides: Ride[] = [
     {
@@ -766,7 +852,30 @@ export function liveDriverRating(ride: Ride): number | null {
   return driverRating(ride.driver.id).avg ?? ride.driver.rating;
 }
 
+// Online, ratings and reliability are computed by the server (the raw rows
+// aren't visible to other users) and cached here per user id.
+export const TRUST_KEY = "deshride.trust.v1";
+
+export interface TrustSummary {
+  driverAvg: number | null;
+  driverCount: number;
+  passengerAvg: number | null;
+  passengerCount: number;
+  cancelled: number;
+  noShows: number;
+  trips: number;
+  requestsResolved: number;
+  requestsAnswered: number;
+}
+
+function serverTrust(userId: string): TrustSummary | undefined {
+  if (!remote) return undefined;
+  return load<Record<string, TrustSummary>>(TRUST_KEY, {})[userId];
+}
+
 export function driverRating(driverId: string): { avg: number | null; count: number } {
+  const t = serverTrust(driverId);
+  if (t) return { avg: t.driverAvg, count: t.driverCount };
   const list = load<RatingsMap>(RATINGS_KEY, {})[driverId] ?? [];
   if (list.length === 0) return { avg: null, count: 0 };
   return { avg: list.reduce((a, b) => a + b, 0) / list.length, count: list.length };
@@ -818,6 +927,7 @@ export function confirmReleaseAndRate(bookingId: string, stars: number | null) {
   const ride = getRide(booking.rideId);
   if (stars && ride) addDriverRating(ride.driver.id, stars);
   updateStats({ guestTrips: getStats().guestTrips + 1 }, 20);
+  pushRemote("confirm_release_and_rate", { booking_id: bookingId, stars });
 }
 
 // --- messaging -------------------------------------------------------------
@@ -859,6 +969,7 @@ export function sendMessage(bookingId: string, text: string): Message {
     createdAt: new Date().toISOString()
   };
   save("deshride.messages.v1", [...all, message]);
+  pushRemote("send_message", { booking_id: bookingId, body: text, message_id: message.id });
   return message;
 }
 
@@ -899,6 +1010,8 @@ function allNotifications(): AppNotification[] {
 }
 
 export function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">, dedupeKey?: string) {
+  // Online, the server creates notifications for the right person.
+  if (remote) return;
   const all = allNotifications();
   if (dedupeKey && all.some((x) => notificationKey(x) === dedupeKey)) return;
   save(NOTIFICATIONS_KEY, [
@@ -927,6 +1040,7 @@ export function markNotificationsRead() {
   const all = allNotifications();
   if (!all.some((n) => n.userId === me && !n.read)) return;
   save(NOTIFICATIONS_KEY, all.map((n) => (n.userId === me ? { ...n, read: true } : n)));
+  pushRemote("mark_notifications_read");
 }
 
 
@@ -950,6 +1064,8 @@ function addStrike(userId: string, kind: "cancelled" | "noShow") {
 // Trips counts finished trips plus the ones this person cancelled late, so the
 // cancellation rate reads as "cancelled 1 of 20".
 export function reliability(userId: string): { trips: number; cancelled: number; noShows: number } {
+  const t = serverTrust(userId);
+  if (t) return { trips: t.trips, cancelled: t.cancelled, noShows: t.noShows };
   const strikes = load<Record<string, Strikes>>(RELIABILITY_KEY, {})[userId] ?? { cancelled: 0, noShows: 0 };
   const drove = allRides().filter((r) => r.driver.id === userId && r.status === "completed").length;
   const rode = allBookings().filter((b) => b.guestId === userId && b.status === "accepted" && b.payStatus === "released").length;
@@ -958,6 +1074,8 @@ export function reliability(userId: string): { trips: number; cancelled: number;
 
 // Share of booking requests the driver answered before they expired.
 export function responseStats(driverId: string): { rate: number; total: number } {
+  const t = serverTrust(driverId);
+  if (t) return { rate: t.requestsResolved ? t.requestsAnswered / t.requestsResolved : 1, total: t.requestsResolved };
   const rideIds = new Set(allRides().filter((r) => r.driver.id === driverId).map((r) => r.id));
   const resolved = allBookings().filter(
     (b) => rideIds.has(b.rideId) && b.viaRequest && (b.respondedAt || b.status === "expired")
@@ -994,6 +1112,7 @@ export function reportNoShow(bookingId: string, who: "guest" | "driver"): string
     );
     addStrike(ride.driver.id, "noShow");
   }
+  pushRemote("report_no_show", { booking_id: bookingId, who });
   return null;
 }
 
@@ -1011,10 +1130,13 @@ export function ratePassenger(bookingId: string, stars: number): string | null {
   all[booking.guestId] = [...(all[booking.guestId] ?? []), value];
   save(GUEST_RATINGS_KEY, all);
   updateStats({}, 10);
+  pushRemote("rate_passenger", { booking_id: bookingId, stars: value });
   return null;
 }
 
 export function passengerRating(guestId: string): { avg: number | null; count: number } {
+  const t = serverTrust(guestId);
+  if (t) return { avg: t.passengerAvg, count: t.passengerCount };
   const list = load<Record<string, number[]>>(GUEST_RATINGS_KEY, {})[guestId] ?? [];
   if (list.length === 0) return { avg: null, count: 0 };
   return { avg: list.reduce((a, b) => a + b, 0) / list.length, count: list.length };
@@ -1046,11 +1168,13 @@ export function addAlert(from?: string, to?: string): RideAlert {
   if (existing) return existing;
   const alert: RideAlert = { id: uid("alert"), userId: getProfile().id, from, to, createdAt: new Date().toISOString() };
   save(ALERTS_KEY, [...allAlerts(), alert]);
+  pushRemote("add_alert", { from_district: from ?? null, to_district: to ?? null, alert_id: alert.id });
   return alert;
 }
 
 export function removeAlert(id: string) {
   save(ALERTS_KEY, allAlerts().filter((a) => a.id !== id));
+  pushRemote("remove_alert", { alert_id: id });
 }
 
 // Rides posted after an alert was set, on its route, not yet seen.
@@ -1118,11 +1242,13 @@ export function blockUser(targetId: string, targetName: string) {
   const me = getProfile().id;
   if (targetId === me || allBlocks().some((b) => b.blockerId === me && b.targetId === targetId)) return;
   save(BLOCKS_KEY, [...allBlocks(), { blockerId: me, targetId, targetName, createdAt: new Date().toISOString() }]);
+  pushRemote("block_user", { target: targetId, target_name: targetName });
 }
 
 export function unblockUser(targetId: string) {
   const me = getProfile().id;
   save(BLOCKS_KEY, allBlocks().filter((b) => !(b.blockerId === me && b.targetId === targetId)));
+  pushRemote("unblock_user", { target: targetId });
 }
 
 export function reportUser(input: {
@@ -1140,6 +1266,7 @@ export function reportUser(input: {
     createdAt: new Date().toISOString()
   };
   save(REPORTS_KEY, [...load<UserReport[]>(REPORTS_KEY, []), report]);
+  pushRemote("report_user", { p: { ...report } });
   return report;
 }
 
@@ -1175,6 +1302,7 @@ export function postRideRequest(input: { from: Spot; to: Spot; date: string; sea
     createdAt: new Date().toISOString()
   };
   save(RIDE_REQUESTS_KEY, [...allRideRequests(), req]);
+  pushRemote("post_ride_request", { p: { id: req.id, from: req.from, to: req.to, date: req.date, seats: req.seats, note: req.note } });
   return req;
 }
 
@@ -1230,6 +1358,7 @@ export function offerRideToRequest(requestId: string, rideId: string): string | 
     )
   );
   pushNotification({ userId: req.riderId, kind: "seatOffer", requestId, rideId });
+  pushRemote("offer_ride_to_request", { request_id: requestId, ride_id: rideId });
   return null;
 }
 
@@ -1239,6 +1368,7 @@ export function closeRideRequest(requestId: string) {
     RIDE_REQUESTS_KEY,
     allRideRequests().map((r) => (r.id === requestId && r.riderId === me ? { ...r, status: "closed" as const } : r))
   );
+  pushRemote("close_ride_request", { request_id: requestId });
 }
 
 // --- money: fare breakdown, receipts, earnings -----------------------------------

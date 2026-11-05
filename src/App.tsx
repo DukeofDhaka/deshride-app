@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { BottomNav, Header } from "./components/Header";
 import { HomePage } from "./pages/HomePage";
@@ -14,11 +14,34 @@ import { ReceiptPage } from "./pages/ReceiptPage";
 import { EarningsPage } from "./pages/EarningsPage";
 import { RequestsPage } from "./pages/RequestsPage";
 import { ensureSeed, sweepLifecycle } from "./lib/store";
+import { useTranslation } from "./i18n";
 
 ensureSeed();
 
 export default function App() {
   const location = useLocation();
+  const { t } = useTranslation();
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
+
+  // Server refusals (e.g. someone took the last seat first) and connection
+  // changes come from the sync layer as window events.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onError = (e: Event) => {
+      setSyncError((e as CustomEvent<string>).detail);
+      clearTimeout(timer);
+      timer = setTimeout(() => setSyncError(null), 6000);
+    };
+    const onConnection = (e: Event) => setOffline(!(e as CustomEvent<{ online: boolean }>).detail.online);
+    window.addEventListener("deshride-sync-error", onError);
+    window.addEventListener("deshride-connection", onConnection);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("deshride-sync-error", onError);
+      window.removeEventListener("deshride-connection", onConnection);
+    };
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -30,6 +53,16 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header />
+      {offline && (
+        <div className="net-banner" role="status">
+          {t("offlineBanner")}
+        </div>
+      )}
+      {syncError && (
+        <div className="toast" role="alert" onClick={() => setSyncError(null)}>
+          {t("syncErrorPrefix")} {syncError}
+        </div>
+      )}
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
