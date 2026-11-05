@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createSearchParams, useNavigate } from "react-router-dom";
 import type { Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
-import { listUpcomingRides, recentSearches, rememberSearch } from "../lib/store";
+import { alertMatches, listUpcomingRides, markAlertRidesSeen, recentSearches, rememberSearch } from "../lib/store";
 import { RideCard } from "../components/RideCard";
 import { Icon, type IconName } from "../components/Icons";
 import { findNearest, type SearchOrigin } from "../data/gazetteer";
@@ -83,6 +83,8 @@ export function HomePage() {
     );
   }, []);
   const previous = useMemo(() => recentSearches(), []);
+  const alerts = useMemo(() => alertMatches(), []);
+  const alertRideCount = alerts.reduce((n, m) => n + m.rides.length, 0);
   const upcoming = useMemo(() => listUpcomingRides(), []);
   const popular = useMemo(() => {
     const routes = new Map<string, { from: string; to: string; n: number; min: number }>();
@@ -128,6 +130,29 @@ export function HomePage() {
     <section className="page page--home">
       <div className="home">
         <div className="home__main">
+          {alertRideCount > 0 && (
+            <button
+              type="button"
+              className="banner banner--info"
+              onClick={() => {
+                const first = alerts[0].alert;
+                markAlertRidesSeen(alerts.flatMap((m) => m.rides.map((r) => r.id)));
+                const params: Record<string, string> = { seats: "1" };
+                if (first.from) params.from = first.from;
+                if (first.to) params.to = first.to;
+                navigate({ pathname: "/results", search: createSearchParams(params).toString() });
+              }}
+            >
+              <Icon name="bell" />
+              <span>
+                {t("alertBanner", {
+                  count: alertRideCount,
+                  route: `${alerts[0].alert.from ?? t("anywhere")} → ${alerts[0].alert.to ?? t("anywhere")}`
+                })}
+              </span>
+            </button>
+          )}
+
           <div className="home-hero">
             <span className="hero__label">{t("heroLabel")}</span>
             <h1>{t("homeHeadline")}</h1>
@@ -212,6 +237,12 @@ export function HomePage() {
             {t("postRidePrompt")}{" "}
             <Link className="secondary-link" to="/post">
               {t("postRideLink")}
+            </Link>
+          </p>
+          <p className="hero__post-cta">
+            {t("needSeatPrompt")}{" "}
+            <Link className="secondary-link" to="/requests">
+              {t("seatRequestsLink")}
             </Link>
           </p>
 

@@ -1,7 +1,19 @@
 // Local-first data layer. Every read/write goes through this module so the
 // UI never touches storage directly — swapping in a real backend later means
 // reimplementing these functions against an API, nothing else.
-import type { Booking, BookingStatus, PayStatus, Profile, Ride, Spot, Message } from "../types";
+import type {
+  Booking,
+  BookingStatus,
+  Message,
+  PayStatus,
+  Profile,
+  ReportReason,
+  Ride,
+  RideAlert,
+  RideRequest,
+  Spot,
+  UserReport
+} from "../types";
 import { useSyncExternalStore } from "react";
 import type { PaymentMethodId } from "../data/paymentMethods";
 import { localDateKey } from "./time";
@@ -69,15 +81,26 @@ export function getProfile(): Profile {
     id: uid("user"),
     name: "",
     phone: "",
+    memberSince: new Date().toISOString(),
     verified: { phone: true, nid: false, licence: false }
   };
   save(KEYS.profile, fresh);
   return fresh;
 }
 
-export function saveProfile(profile: Profile) {
-  save(KEYS.profile, profile);
+// The current user's id without creating a profile (safe inside renders).
+function myId(): string | undefined {
+  return load<Profile | null>(KEYS.profile, null)?.id;
 }
+
+export function saveProfile(profile: Profile) {
+  save(KEYS.profile, {
+    ...profile,
+    bio: profile.bio ? censorPhoneNumbers(profile.bio.trim()).slice(0, BIO_MAX) : undefined
+  });
+}
+
+export const BIO_MAX = 200;
 
 // --- rides -----------------------------------------------------------------
 
@@ -91,8 +114,9 @@ function saveRides(rides: Ride[]) {
 
 export function listUpcomingRides(): Ride[] {
   const cutoff = Date.now() - 12 * 3600 * 1000;
+  const blocked = new Set(blockedIds());
   return allRides()
-    .filter((r) => r.status === "active" && new Date(r.departure).getTime() > cutoff)
+    .filter((r) => r.status === "active" && new Date(r.departure).getTime() > cutoff && !blocked.has(r.driver.id))
     .sort((a, b) => a.departure.localeCompare(b.departure));
 }
 
@@ -151,6 +175,7 @@ export interface NewRide {
   rules: string[];
   note?: string;
   instantBook?: boolean;
+  seriesId?: string;
 }
 
 function assertValidRide(input: NewRide) {
@@ -181,7 +206,11 @@ export function createRide(input: NewRide): Ride {
       phone: profile.phone || undefined,
       verified: Boolean(profile.driver),
       plate: profile.driver?.plate,
-      carColor: profile.driver?.carColor
+      carColor: profile.driver?.carColor,
+      photo: profile.photo,
+      bio: profile.bio,
+      prefs: profile.prefs,
+      memberSince: profile.memberSince
     },
     status: "active",
     createdAt: new Date().toISOString(),
@@ -190,17 +219,58 @@ export function createRide(input: NewRide): Ride {
     instantBook: input.instantBook ?? false
   };
   saveRides([...allRides(), ride]);
+  notifyAlertWatchers(ride);
   return ride;
 }
 
+// Post the same trip on several dates at once (weekly commuters, Eid runs).
+// `dates` are local YYYY-MM-DD keys; the time of day comes from input.departure.
+export const MAX_SERIES_DATES = 10;
+
+export function createRideSeries(input: NewRide, dates: string[]): Ride[] {
+  const unique = [...new Set(dates)].sort().slice(0, MAX_SERIES_DATES);
+  if (unique.length === 0) return [createRide(input)];
+  const base = new Date(input.departure);
+  const seriesId = unique.length > 1 ? uid("series") : undefined;
+  return unique.map((key) => {
+    const [y, m, d] = key.split("-").map(Number);
+    const dep = new Date(base);
+    dep.setFullYear(y, m - 1, d);
+    return createRide({ ...input, departure: dep.toISOString(), seriesId });
+  });
+}
+
+// Cancels every ride in a series that hasn't left yet.
+export function cancelRideSeries(seriesId: string): number {
+  const now = Date.now();
+  const me = getProfile().id;
+  const targets = allRides().filter(
+    (r) => r.seriesId === seriesId && r.driver.id === me && r.status === "active" && Date.parse(r.departure) > now
+  );
+  targets.forEach((r) => cancelRide(r.id));
+  return targets.length;
+}
+
+// Weekly dates on the chosen weekdays (0 = Sunday) from start to end inclusive.
+export function weeklyDates(start: string, end: string, weekdays: number[]): string[] {
+  const out: string[] = [];
+  const d = new Date(`${start}T12:00:00`);
+  const last = new Date(`${end}T12:00:00`);
+  while (d <= last && out.length < MAX_SERIES_DATES) {
+    if (weekdays.includes(d.getDay())) out.push(localDateKey(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+
 // A ride being posted pauses here while the driver completes onboarding.
-export function saveRideDraft(draft: NewRide) {
+export function saveRideDraft(draft: NewRide & { seriesDates?: string[] }) {
   assertValidRide(draft);
   save(KEYS.draft, draft);
 }
 
-export function loadRideDraft(): NewRide | null {
-  return load<NewRide | null>(KEYS.draft, null);
+export function loadRideDraft(): (NewRide & { seriesDates?: string[] }) | null {
+  return load<(NewRide & { seriesDates?: string[] }) | null>(KEYS.draft, null);
 }
 
 export function clearRideDraft() {
@@ -428,6 +498,9 @@ export function requestBooking(
   if (!ride) {
     throw new Error("Ride not found");
   }
+  if (isBlockedBetween(getProfile().id, ride.driver.id)) {
+    throw new Error("You can't book this ride.");
+  }
   if (seatsLeft(ride) < seats) {
     throw new Error("Not enough seats left.");
   }
@@ -541,7 +614,8 @@ export function myBookings(): Booking[] {
 }
 
 export function pendingRequests(rideId: string): Booking[] {
-  return allBookings().filter((b) => b.rideId === rideId && b.status === "pending");
+  const blocked = new Set(blockedIds());
+  return allBookings().filter((b) => b.rideId === rideId && b.status === "pending" && !blocked.has(b.guestId));
 }
 
 export function acceptedBookings(rideId: string): Booking[] {
@@ -569,6 +643,7 @@ export function ensureSeed() {
       driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.75, 90.38, "Kalabagan bus stand, gate 2"),
       to: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle, Wells Park side"),
+      stops: [spot("Cumilla", "Cumilla", 23.46, 91.18, "Matri Bhandar, highway side")],
       departure: departureAt(1, 7, 30),
       seatsTotal: 3,
       pricePerSeat: 1500,
@@ -576,6 +651,7 @@ export function ensureSeed() {
       luggage: "medium",
       rules: ["ruleNoSmoking", "ruleHighwayAc", "ruleMaxThreeBack"],
       note: "One tea break at Cumilla Matri Bhandar. I leave on time.",
+      instantBook: true,
       status: "active",
       createdAt: new Date().toISOString()
     },
@@ -945,4 +1021,266 @@ export function passengerRating(guestId: string): { avg: number | null; count: n
   const list = load<Record<string, number[]>>(GUEST_RATINGS_KEY, {})[guestId] ?? [];
   if (list.length === 0) return { avg: null, count: 0 };
   return { avg: list.reduce((a, b) => a + b, 0) / list.length, count: list.length };
+}
+
+
+// --- ride alerts -------------------------------------------------------------
+// "Tell me when a ride is posted on this route." Matching runs locally when a
+// ride is created on this device; a backend would match server-side and push.
+
+const ALERTS_KEY = "deshride.alerts.v1";
+const ALERTS_SEEN_KEY = "deshride.alerts-seen.v1";
+
+function allAlerts(): RideAlert[] {
+  return load<RideAlert[]>(ALERTS_KEY, []);
+}
+
+export function listAlerts(): RideAlert[] {
+  const me = myId();
+  return allAlerts().filter((a) => a.userId === me);
+}
+
+export function findAlert(from?: string, to?: string): RideAlert | undefined {
+  return listAlerts().find((a) => a.from === from && a.to === to);
+}
+
+export function addAlert(from?: string, to?: string): RideAlert {
+  const existing = findAlert(from, to);
+  if (existing) return existing;
+  const alert: RideAlert = { id: uid("alert"), userId: getProfile().id, from, to, createdAt: new Date().toISOString() };
+  save(ALERTS_KEY, [...allAlerts(), alert]);
+  return alert;
+}
+
+export function removeAlert(id: string) {
+  save(ALERTS_KEY, allAlerts().filter((a) => a.id !== id));
+}
+
+// Rides posted after an alert was set, on its route, not yet seen.
+export function alertMatches(): { alert: RideAlert; rides: Ride[] }[] {
+  const seen = new Set(load<string[]>(ALERTS_SEEN_KEY, []));
+  const me = myId();
+  const upcoming = listUpcomingRides().filter((r) => r.driver.id !== me);
+  return listAlerts()
+    .map((alert) => ({
+      alert,
+      rides: upcoming.filter(
+        (r) => r.createdAt > alert.createdAt && !seen.has(r.id) && routeMatches(r, alert.from, alert.to)
+      )
+    }))
+    .filter((m) => m.rides.length > 0);
+}
+
+export function markAlertRidesSeen(rideIds: string[]) {
+  const seen = load<string[]>(ALERTS_SEEN_KEY, []);
+  save(ALERTS_SEEN_KEY, [...new Set([...seen, ...rideIds])].slice(-500));
+}
+
+function notifyAlertWatchers(ride: Ride) {
+  for (const alert of allAlerts()) {
+    if (alert.userId === ride.driver.id) continue;
+    if (routeMatches(ride, alert.from, alert.to)) {
+      pushNotification({ userId: alert.userId, kind: "alertMatch", rideId: ride.id });
+    }
+  }
+}
+
+// --- report & block -----------------------------------------------------------
+
+const REPORTS_KEY = "deshride.reports.v1";
+const BLOCKS_KEY = "deshride.blocks.v1";
+
+interface BlockEntry {
+  blockerId: string;
+  targetId: string;
+  targetName: string;
+  createdAt: string;
+}
+
+function allBlocks(): BlockEntry[] {
+  return load<BlockEntry[]>(BLOCKS_KEY, []);
+}
+
+// People the current user has blocked (their rides and requests are hidden).
+export function blockedIds(): string[] {
+  const me = load<Profile | null>(KEYS.profile, null)?.id;
+  return allBlocks().filter((b) => b.blockerId === me).map((b) => b.targetId);
+}
+
+export function blockedPeople(): BlockEntry[] {
+  const me = getProfile().id;
+  return allBlocks().filter((b) => b.blockerId === me);
+}
+
+// Either side blocking stops a booking between them.
+export function isBlockedBetween(a: string, b: string): boolean {
+  return allBlocks().some((x) => (x.blockerId === a && x.targetId === b) || (x.blockerId === b && x.targetId === a));
+}
+
+export function blockUser(targetId: string, targetName: string) {
+  const me = getProfile().id;
+  if (targetId === me || allBlocks().some((b) => b.blockerId === me && b.targetId === targetId)) return;
+  save(BLOCKS_KEY, [...allBlocks(), { blockerId: me, targetId, targetName, createdAt: new Date().toISOString() }]);
+}
+
+export function unblockUser(targetId: string) {
+  const me = getProfile().id;
+  save(BLOCKS_KEY, allBlocks().filter((b) => !(b.blockerId === me && b.targetId === targetId)));
+}
+
+export function reportUser(input: {
+  targetId: string;
+  targetName: string;
+  reason: ReportReason;
+  note?: string;
+  bookingId?: string;
+}): UserReport {
+  const report: UserReport = {
+    id: uid("rpt"),
+    reporterId: getProfile().id,
+    ...input,
+    note: input.note ? censorPhoneNumbers(input.note.trim()).slice(0, 500) : undefined,
+    createdAt: new Date().toISOString()
+  };
+  save(REPORTS_KEY, [...load<UserReport[]>(REPORTS_KEY, []), report]);
+  return report;
+}
+
+export function myReports(): UserReport[] {
+  const me = getProfile().id;
+  return load<UserReport[]>(REPORTS_KEY, []).filter((r) => r.reporterId === me);
+}
+
+// --- seat requests (riders posting "seat wanted") ------------------------------
+
+const RIDE_REQUESTS_KEY = "deshride.ride-requests.v1";
+
+function allRideRequests(): RideRequest[] {
+  return load<RideRequest[]>(RIDE_REQUESTS_KEY, []);
+}
+
+export function postRideRequest(input: { from: Spot; to: Spot; date: string; seats: number; note?: string }): RideRequest {
+  if (!input.from?.district || !input.to?.district) throw new Error("Choose where from and where to.");
+  if (input.from.district === input.to.district) throw new Error("Pick two different places.");
+  if (!(input.seats >= 1 && input.seats <= 6)) throw new Error("Seats must be between 1 and 6.");
+  const profile = getProfile();
+  const req: RideRequest = {
+    id: uid("rq"),
+    riderId: profile.id,
+    riderName: profile.name || "Rider",
+    from: input.from,
+    to: input.to,
+    date: input.date,
+    seats: input.seats,
+    note: input.note ? censorPhoneNumbers(input.note.trim()).slice(0, 300) : undefined,
+    status: "open",
+    offers: [],
+    createdAt: new Date().toISOString()
+  };
+  save(RIDE_REQUESTS_KEY, [...allRideRequests(), req]);
+  return req;
+}
+
+export function openRideRequests(filter: { from?: string; to?: string } = {}): RideRequest[] {
+  const today = localDateKey(new Date());
+  const blocked = new Set(blockedIds());
+  return allRideRequests()
+    .filter(
+      (r) =>
+        r.status === "open" &&
+        r.date >= today &&
+        !blocked.has(r.riderId) &&
+        (!filter.from || r.from.district === filter.from) &&
+        (!filter.to || r.to.district === filter.to)
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function myRideRequests(): RideRequest[] {
+  const me = getProfile().id;
+  return allRideRequests().filter((r) => r.riderId === me && r.status === "open");
+}
+
+export function getRideRequest(id: string): RideRequest | undefined {
+  return allRideRequests().find((r) => r.id === id);
+}
+
+// The driver's own upcoming rides that would carry this rider.
+export function matchingRidesForRequest(req: RideRequest): Ride[] {
+  const me = getProfile().id;
+  return allRides().filter(
+    (r) =>
+      r.driver.id === me &&
+      r.status === "active" &&
+      localDateKey(r.departure) === req.date &&
+      seatsLeft(r) >= req.seats &&
+      routeMatches(r, req.from.district, req.to.district)
+  );
+}
+
+export function offerRideToRequest(requestId: string, rideId: string): string | null {
+  const req = getRideRequest(requestId);
+  const ride = getRide(rideId);
+  const me = getProfile().id;
+  if (!req || req.status !== "open") return "This request is no longer open.";
+  if (!ride || ride.driver.id !== me) return "Choose one of your own rides.";
+  if (!matchingRidesForRequest(req).some((r) => r.id === rideId)) return "That ride doesn't match this request.";
+  if (req.offers.some((o) => o.rideId === rideId)) return null;
+  save(
+    RIDE_REQUESTS_KEY,
+    allRideRequests().map((r) =>
+      r.id === requestId ? { ...r, offers: [...r.offers, { rideId, driverId: me, createdAt: new Date().toISOString() }] } : r
+    )
+  );
+  pushNotification({ userId: req.riderId, kind: "seatOffer", requestId, rideId });
+  return null;
+}
+
+export function closeRideRequest(requestId: string) {
+  const me = getProfile().id;
+  save(
+    RIDE_REQUESTS_KEY,
+    allRideRequests().map((r) => (r.id === requestId && r.riderId === me ? { ...r, status: "closed" as const } : r))
+  );
+}
+
+// --- money: fare breakdown, receipts, earnings -----------------------------------
+// Riders pay the listed fare and nothing more; DeshRide's 12% commission comes
+// out of the driver's side when escrow releases (docs/feasibility/05 §4).
+
+export const COMMISSION_RATE = 0.12;
+
+export function fareBreakdown(booking: Booking, ride: Ride): { gross: number; commission: number; driverNet: number } {
+  const gross = bookingFare(booking, ride) * booking.seats;
+  const commission = Math.round(gross * COMMISSION_RATE);
+  return { gross, commission, driverNet: gross - commission };
+}
+
+export interface EarningLine {
+  booking: Booking;
+  ride: Ride;
+  gross: number;
+  commission: number;
+  driverNet: number;
+}
+
+export function driverEarnings(): {
+  held: number;
+  releasing: number;
+  paid: number;
+  lines: EarningLine[];
+} {
+  const me = getProfile().id;
+  const rides = new Map(allRides().filter((r) => r.driver.id === me).map((r) => [r.id, r]));
+  const lines: EarningLine[] = [];
+  for (const b of allBookings()) {
+    const ride = rides.get(b.rideId);
+    if (!ride) continue;
+    if (!["held", "releasing", "released"].includes(b.payStatus)) continue;
+    lines.push({ booking: b, ride, ...fareBreakdown(b, ride) });
+  }
+  lines.sort((a, b) => b.ride.departure.localeCompare(a.ride.departure));
+  const sum = (status: PayStatus) =>
+    lines.filter((l) => l.booking.payStatus === status).reduce((t, l) => t + l.driverNet, 0);
+  return { held: sum("held"), releasing: sum("releasing"), paid: sum("released"), lines };
 }

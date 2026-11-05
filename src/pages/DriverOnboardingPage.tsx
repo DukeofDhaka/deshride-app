@@ -3,38 +3,17 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   clearRideDraft,
   createRide,
+  createRideSeries,
   getProfile,
   loadRideDraft,
   saveProfile
 } from "../lib/store";
 import { useTranslation } from "../i18n";
+import { readAndResize } from "../lib/image";
 
 function looksLikeNid(value: string): boolean {
   const digits = value.replace(/\D/g, "");
   return [10, 13, 17].includes(digits.length);
-}
-
-// Shrink the car photo before it goes into device storage.
-function readAndResize(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read failed"));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error("decode failed"));
-      img.onload = () => {
-        const maxW = 900;
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.7));
-      };
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
 export function DriverOnboardingPage() {
@@ -50,6 +29,8 @@ export function DriverOnboardingPage() {
   const [plate, setPlate] = useState(profile.driver?.plate ?? "");
   const [carColor, setCarColor] = useState(profile.driver?.carColor ?? "");
   const [carPhoto, setCarPhoto] = useState<string | undefined>(profile.driver?.carPhoto);
+  const [payoutMethod, setPayoutMethod] = useState<"bkash" | "nagad">(profile.driver?.payoutMethod ?? "bkash");
+  const [payoutNumber, setPayoutNumber] = useState(profile.driver?.payoutNumber ?? "");
   const [error, setError] = useState<string | null>(null);
 
   async function handlePhoto(event: React.ChangeEvent<HTMLInputElement>) {
@@ -85,6 +66,10 @@ export function DriverOnboardingPage() {
       setError(t("errorColor"));
       return;
     }
+    if (payoutNumber.trim() && payoutNumber.replace(/\D/g, "").length < 11) {
+      setError(t("errorPayoutNumber"));
+      return;
+    }
 
     saveProfile({
       ...profile,
@@ -96,6 +81,8 @@ export function DriverOnboardingPage() {
         plate: plate.trim(),
         carColor: carColor.trim(),
         carPhoto,
+        payoutMethod,
+        payoutNumber: (payoutNumber.trim() || phone.trim()) || undefined,
         completedAt: new Date().toISOString()
       },
       verified: { ...profile.verified, nid: true, licence: true }
@@ -103,9 +90,10 @@ export function DriverOnboardingPage() {
 
     const pendingRide = loadRideDraft();
     if (pendingRide) {
-      const ride = createRide(pendingRide);
+      const { seriesDates, ...rideInput } = pendingRide;
+      const rides = seriesDates && seriesDates.length > 0 ? createRideSeries(rideInput, seriesDates) : [createRide(rideInput)];
       clearRideDraft();
-      navigate(`/ride/${ride.id}?posted=1`);
+      navigate(rides.length > 1 ? "/rides" : `/ride/${rides[0].id}?posted=1`);
     } else {
       navigate("/profile");
     }
@@ -216,6 +204,37 @@ export function DriverOnboardingPage() {
               {t("carPhotoHint")}
             </p>
           </div>
+
+          <div className="search-card__row">
+            <div className="field">
+              <label className="field__label" htmlFor="ob-payout-method">
+                {t("payoutMethod")}
+              </label>
+              <select
+                id="ob-payout-method"
+                className="field__input"
+                value={payoutMethod}
+                onChange={(e) => setPayoutMethod(e.target.value as "bkash" | "nagad")}
+              >
+                <option value="bkash">bKash</option>
+                <option value="nagad">Nagad</option>
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="ob-payout-number">
+                {t("payoutNumber")}
+              </label>
+              <input
+                id="ob-payout-number"
+                className="field__input"
+                value={payoutNumber}
+                placeholder={phone || "01XXXXXXXXX"}
+                inputMode="tel"
+                onChange={(e) => setPayoutNumber(e.target.value)}
+              />
+            </div>
+          </div>
+          <p className="field__hint">{t("payoutHint")}</p>
 
           {error && <p className="form-error">{error}</p>}
 

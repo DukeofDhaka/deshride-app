@@ -1579,7 +1579,7 @@ main {
   font-size: 1.02rem;
 }
 
-.manage-card__head span {
+.manage-card__head > div > span {
   font-size: 0.88rem;
   color: var(--muted);
 }

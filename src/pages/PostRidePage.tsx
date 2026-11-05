@@ -1,9 +1,22 @@
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { DISTRICTS } from "../data/gazetteer";
 import type { LuggageSize, Spot } from "../types";
 import { LocationPicker } from "../components/LocationPicker";
 import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } from "../lib/geo";
-import { containsPhoneNumber, createRide, getProfile, saveProfile, saveRideDraft, instantBookUnlocked, getStats, INSTANT_BOOK_SEATS } from "../lib/store";
+import {
+  INSTANT_BOOK_SEATS,
+  MAX_SERIES_DATES,
+  containsPhoneNumber,
+  createRide,
+  createRideSeries,
+  getProfile,
+  getStats,
+  instantBookUnlocked,
+  saveProfile,
+  saveRideDraft,
+  weeklyDates
+} from "../lib/store";
 import { useTranslation } from "../i18n";
 import { todayKey, tomorrowKey } from "../lib/time";
 
@@ -19,15 +32,26 @@ const RULE_OPTIONS = [
 export function PostRidePage() {
   const navigate = useNavigate();
   const profile = getProfile();
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
 
-  const [from, setFrom] = useState<Spot | null>(null);
-  const [to, setTo] = useState<Spot | null>(null);
+  // A driver answering a seat request arrives with the route pre-filled.
+  const [params] = useSearchParams();
+  const districtSpot = (name: string | null): Spot | null => {
+    const d = name ? DISTRICTS.find((p) => p.name === name) : undefined;
+    return d ? { name: d.name, district: d.name, lat: d.lat, lng: d.lng } : null;
+  };
+  const [from, setFrom] = useState<Spot | null>(() => districtSpot(params.get("from")));
+  const [to, setTo] = useState<Spot | null>(() => districtSpot(params.get("to")));
+  const [repeat, setRepeat] = useState<"none" | "weekly" | "dates">("none");
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [repeatUntil, setRepeatUntil] = useState("");
+  const [extraDates, setExtraDates] = useState<string[]>([]);
+  const [extraDraft, setExtraDraft] = useState("");
   const [stops, setStops] = useState<(Spot | null)[]>([]);
   const [withReturn, setWithReturn] = useState(false);
   const [returnDate, setReturnDate] = useState("");
   const [returnTime, setReturnTime] = useState("16:00");
-  const [date, setDate] = useState(tomorrowKey());
+  const [date, setDate] = useState(params.get("date") ?? tomorrowKey());
   const [time, setTime] = useState("07:30");
   const [seatsTotal, setSeatsTotal] = useState(3);
   const [price, setPrice] = useState<number | "">("");
@@ -48,6 +72,25 @@ export function PostRidePage() {
   const km = from && to ? roadKm(from, to) : null;
   const fare = useMemo(() => (km ? suggestedFare(km) : null), [km]);
   const effectivePrice = priceTouched && price !== "" ? Number(price) : (fare?.mid ?? "");
+
+  // All the dates this post will create (one, or a repeating series).
+  const seriesDates = useMemo(() => {
+    if (repeat === "weekly" && repeatUntil && weekdays.length > 0) {
+      return weeklyDates(date, repeatUntil, weekdays);
+    }
+    if (repeat === "dates") {
+      return [...new Set([date, ...extraDates])].sort().slice(0, MAX_SERIES_DATES);
+    }
+    return [date];
+  }, [repeat, repeatUntil, weekdays, date, extraDates]);
+
+  function shortDate(key: string) {
+    return new Date(`${key}T12:00:00`).toLocaleDateString(language === "bn" ? "bn-BD" : "en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short"
+    });
+  }
 
   function toggleRule(rule: string) {
     setRules((current) =>
@@ -93,6 +136,15 @@ export function PostRidePage() {
       return;
     }
 
+    if (repeat !== "none" && seriesDates.length < 2) {
+      setError(t("errorSeriesDates"));
+      return;
+    }
+    if (driverName.trim() !== profile.name) {
+      saveProfile({ ...profile, name: driverName.trim() });
+    }
+    const series = seriesDates.length > 1 ? seriesDates : undefined;
+
     // First-time drivers finish their driver profile before the ride goes live.
     if (!profile.driver) {
       const cleanStops = stops.filter((s): s is Spot => Boolean(s));
@@ -110,13 +162,9 @@ export function PostRidePage() {
         note: note.trim() || undefined,
         instantBook
       };
-      saveRideDraft(rideInput);
+      saveRideDraft({ ...rideInput, seriesDates: series });
       navigate("/driver-onboarding");
       return;
-    }
-
-    if (driverName.trim() !== profile.name) {
-      saveProfile({ ...profile, name: driverName.trim() });
     }
 
     const departure = new Date(`${date}T${time}:00`).toISOString();
@@ -134,6 +182,12 @@ export function PostRidePage() {
       note: note.trim() || undefined,
       instantBook
     };
+
+    if (series) {
+      createRideSeries(rideInput, series);
+      navigate("/rides");
+      return;
+    }
 
     const ride = createRide(rideInput);
     if (withReturn && returnDate) {
@@ -395,6 +449,100 @@ export function PostRidePage() {
             <span>{t('returnTripLabel')}</span>
           </label>
 
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={repeat !== "none"}
+              onChange={(e) => setRepeat(e.target.checked ? "weekly" : "none")}
+            />
+            <span>{t("repeatRide")}</span>
+          </label>
+
+          {repeat !== "none" && (
+            <div className="repeat-box">
+              <div className="seg-control" role="radiogroup" aria-label={t("repeatRide")}>
+                {(["weekly", "dates"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="radio"
+                    aria-checked={repeat === mode}
+                    className={`pill pill--toggle${repeat === mode ? " pill--active" : ""}`}
+                    onClick={() => setRepeat(mode)}
+                  >
+                    {t(mode === "weekly" ? "repeatWeekly" : "repeatPickDates")}
+                  </button>
+                ))}
+              </div>
+              {repeat === "weekly" ? (
+                <>
+                  <div className="date-chips" role="group" aria-label={t("repeatOnDays")}>
+                    {[0, 1, 2, 3, 4, 5, 6].map((d) => {
+                      const label = new Date(2026, 0, 4 + d).toLocaleDateString(language === "bn" ? "bn-BD" : "en-GB", { weekday: "short" });
+                      const on = weekdays.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          aria-pressed={on}
+                          className={`pill pill--toggle${on ? " pill--active" : ""}`}
+                          onClick={() => setWeekdays((cur) => (on ? cur.filter((x) => x !== d) : [...cur, d]))}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="field">
+                    <label className="field__label" htmlFor="post-repeat-until">
+                      {t("repeatUntil")}
+                    </label>
+                    <input
+                      id="post-repeat-until"
+                      type="date"
+                      className="field__input"
+                      value={repeatUntil}
+                      min={date}
+                      onChange={(e) => setRepeatUntil(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="field">
+                  <label className="field__label" htmlFor="post-extra-date">
+                    {t("addDate")}
+                  </label>
+                  <div className="field__control">
+                    <input
+                      id="post-extra-date"
+                      type="date"
+                      className="field__input"
+                      value={extraDraft}
+                      min={todayKey()}
+                      onChange={(e) => setExtraDraft(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      disabled={!extraDraft || seriesDates.length >= MAX_SERIES_DATES}
+                      onClick={() => {
+                        setExtraDates((cur) => [...new Set([...cur, extraDraft])]);
+                        setExtraDraft("");
+                      }}
+                    >
+                      {t("add")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className="field__hint">
+                {seriesDates.length > 1
+                  ? t("seriesPreview", { count: seriesDates.length, dates: seriesDates.map(shortDate).join(", ") })
+                  : t("seriesNeedsDates", { max: MAX_SERIES_DATES })}
+              </p>
+            </div>
+          )}
+
           {withReturn && (
             <div className="search-card__row">
               <div className="field">
@@ -430,7 +578,7 @@ export function PostRidePage() {
 
           {error && <p className="form-error" role="alert">{t("errorPrefix")} {error}</p>}
 
-          <button className="primary-button primary-button--full" type="submit">
+          <button className="cta-button cta-button--full" type="submit">
             {t("postRideSubmit")}
           </button>
         </form>

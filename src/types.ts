@@ -52,6 +52,8 @@ export interface Ride {
   rules: string[];
   note?: string;
   status: RideStatus;
+  // Rides posted together as a repeating series share this id.
+  seriesId?: string;
   createdAt: string;
 }
 
@@ -102,6 +104,9 @@ export interface DriverDetails {
   plate: string;
   carColor: string;
   carPhoto?: string;
+  // bKash/Nagad wallet that receives trip payouts.
+  payoutMethod?: "bkash" | "nagad";
+  payoutNumber?: string;
   completedAt: string;
 }
 
@@ -110,6 +115,10 @@ export interface Profile {
   name: string;
   phone: string;
   driver?: DriverDetails;
+  photo?: string;
+  bio?: string;
+  prefs?: TravelPrefs;
+  memberSince?: string;
   verified: {
     phone: boolean;
     nid: boolean;
@@ -123,5 +132,41 @@ export interface Message {
   senderId: string;
   senderName: string;
   text: string;
+  createdAt: string;
+}
+
+export interface RideAlert {
+  id: string;
+  userId: string;
+  from?: string;
+  to?: string;
+  createdAt: string;
+}
+
+export type ReportReason = "unsafeDriving" | "harassment" | "offAppPayment" | "noShow" | "other";
+
+export interface UserReport {
+  id: string;
+  reporterId: string;
+  targetId: string;
+  targetName: string;
+  reason: ReportReason;
+  note?: string;
+  bookingId?: string;
+  createdAt: string;
+}
+
+// A rider's "seat wanted" post that drivers can answer with one of their rides.
+export interface RideRequest {
+  id: string;
+  riderId: string;
+  riderName: string;
+  from: Spot;
+  to: Spot;
+  date: string;
+  seats: number;
+  note?: string;
+  status: "open" | "closed";
+  offers: { rideId: string; driverId: string; createdAt: string }[];
   createdAt: string;
 }

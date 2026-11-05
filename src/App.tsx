@@ -9,6 +9,10 @@ import { MyRidesPage } from "./pages/MyRidesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DriverOnboardingPage } from "./pages/DriverOnboardingPage";
 import { ChatPage } from "./pages/ChatPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
+import { ReceiptPage } from "./pages/ReceiptPage";
+import { EarningsPage } from "./pages/EarningsPage";
+import { RequestsPage } from "./pages/RequestsPage";
 import { ensureSeed, sweepLifecycle } from "./lib/store";
 
 ensureSeed();
@@ -18,7 +22,9 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    sweepLifecycle();
+    // Run after this commit so pages that repaint synchronously on store
+    // changes (flushSync) aren't asked to do so mid-render.
+    queueMicrotask(() => sweepLifecycle());
   }, [location.pathname]);
 
   return (
@@ -34,6 +40,10 @@ export default function App() {
           <Route path="/rides" element={<MyRidesPage />} />
           <Route path="/chat/:bookingId" element={<ChatPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/receipt/:bookingId" element={<ReceiptPage />} />
+          <Route path="/earnings" element={<EarningsPage />} />
+          <Route path="/requests" element={<RequestsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

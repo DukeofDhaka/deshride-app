@@ -17,6 +17,28 @@ accept-into-escrow → complete → release payment) works end to end, with data
 the device via `src/lib/store.ts`. That module is the single seam for the future
 backend — reimplement its functions against an API and nothing else changes.
 
+## What riders and drivers can do
+
+- **Search** any route in Bangladesh, including pickups and drop-offs at a
+  stopover, which pay a distance-based share of the fare. Search by date and
+  seat count, filter to Instant Book, and set a **ride alert** for a route.
+- **Seat requests:** riders post "I need 2 seats Dhaka → Rajshahi on
+  Friday" and drivers on that route can offer a ride.
+- **Book:** use Instant Book or send a request. A driver has 12 hours (or until
+  departure, if sooner) to answer before the request expires. Riders pay with
+  bKash, Nagad or card into escrow, and every booking gets a receipt.
+- **Trust:**
+  - NID-verified drivers, with profile photos, bios and travel preferences
+  - reviews in both directions, response rate and cancellation history
+  - no-show reports, so a driver no-show is refunded in full
+  - report and block
+  - "Share trip" and one-tap 999 once a seat is confirmed
+- **Drive:** post one ride, a return trip or a repeating series (for example
+  every Thursday), manage requests, and track earnings after DeshRide's 12% fee.
+- **Notifications** for requests, confirmations, reminders and alerts. They are
+  in-app for now; push needs the backend.
+- Bangla first, with a full English toggle.
+
 ## Run locally
 
 ```bash
