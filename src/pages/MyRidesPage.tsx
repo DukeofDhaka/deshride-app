@@ -32,6 +32,7 @@ import { Avatar } from "../components/Avatar";
 import { Icon } from "../components/Icons";
 import { ReportButton } from "../components/ReportDialog";
 import { DriverTrustStats } from "../components/DriverTrustStats";
+import { PayInAppNotice } from "../components/PayInAppNotice";
 
 function formatDeparture(iso: string, language: string): string {
   return new Date(iso).toLocaleString(language === "bn" ? "bn-BD" : "en-GB", {
@@ -163,11 +164,6 @@ function DrivingRide({
               <Avatar name={b.guestName} size="sm" accent="#476a8a" />
               <strong>✓ {b.guestName}</strong>
               <GuestRating guestId={b.guestId} />
-              {b.guestPhone && (
-                <a className="secondary-link" href={`tel:${b.guestPhone}`}>
-                  {b.guestPhone}
-                </a>
-              )}
               <span className="request-meta">
                 {t("seatsCount", { count: b.seats })} · {paymentLabel(b.payMethod, t)}
                 {seg && ` · ${seg}`}
@@ -255,6 +251,7 @@ function DrivingRide({
                     <span className="request-meta">
                       <Icon name="clock" size={13} /> {t("expiresIn", { left: timeLeft(b.expiresAt) ?? "" })}
                     </span>
+                    <PayInAppNotice compact />
                   </span>
                   <span className="request-row__actions">
                     <button
@@ -395,12 +392,9 @@ export function MyRidesPage() {
                       {booking.payStatus === "refunded" &&
                         t("refunded", { pct: booking.refundPct && booking.refundPct < 100 ? `${booking.refundPct}% ` : "" })}
                     </span>
-                    {booking.status === "accepted" && ride.driver.phone && (
+                    {booking.status === "accepted" && (
                       <span>
-                        {t("driverPrefix")} {ride.driver.name} ·{" "}
-                        <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
-                          {ride.driver.phone}
-                        </a>
+                        {t("driverPrefix")} {ride.driver.name}
                       </span>
                     )}
                     {booking.status === "pending" && booking.expiresAt && (

@@ -120,6 +120,7 @@ export function DriverOnboardingPage() {
               inputMode="tel"
               onChange={(e) => setPhone(e.target.value)}
             />
+            <span className="field__hint">{t("phonePrivateHint")}</span>
           </div>
 
           <div className="field">

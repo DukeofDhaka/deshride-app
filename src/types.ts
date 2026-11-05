@@ -23,6 +23,7 @@ export interface DriverInfo {
   rating: number | null;
   trips: number;
   accent: string;
+  // Legacy: older local rides carried the driver's number. Never displayed.
   phone?: string;
   verified?: boolean;
   photo?: string;
@@ -70,6 +71,7 @@ export interface Booking {
   rideId: string;
   guestId: string;
   guestName: string;
+  // Legacy, never displayed: numbers stay private to their owner.
   guestPhone?: string;
   seats: number;
   payMethod: PaymentMethodId;
@@ -132,6 +134,9 @@ export interface Message {
   senderId: string;
   senderName: string;
   text: string;
+  // "contact": contact details were hidden; "payment": talks about paying
+  // outside the app. Both show a warning under the message.
+  flags?: ("contact" | "payment")[];
   createdAt: string;
 }
 

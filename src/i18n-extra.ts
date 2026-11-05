@@ -3,6 +3,14 @@
 // merged into the main dictionaries at startup.
 export const extraStrings: { bn: Record<string, string>; en: Record<string, string> } = {
   bn: {
+    payInAppNotice: "সব পেমেন্ট দেশরাইড অ্যাপে করুন। ড্রাইভারকে সরাসরি নগদ বা বিকাশ দেবেন না — অ্যাপের বাইরে দিলে রিফান্ড ও সুরক্ষা পাবেন না।",
+    payInAppShort: "ভাড়া শুধু অ্যাপে — সরাসরি নগদ/বিকাশ নয়।",
+    chatPinnedNotice: "সব পেমেন্ট দেশরাইড অ্যাপে করুন। ড্রাইভারকে সরাসরি নগদ বা বিকাশ দেবেন না — অ্যাপের বাইরে দিলে রিফান্ড ও সুরক্ষা পাবেন না। ফোন নম্বর ও যোগাযোগের তথ্য এখানে লুকানো থাকে।",
+    contactHiddenNote: "যোগাযোগের তথ্য লুকানো হয়েছে। এখানেই কথা বলুন, তাহলে আপনার ট্রিপ সুরক্ষিত থাকবে।",
+    offAppPaymentNote: "সতর্কতা: অ্যাপের বাইরে টাকা দেবেন না। দেশরাইডে পেমেন্ট করলে তবেই রিফান্ড ও সুরক্ষা পাবেন।",
+    paymentTypingWarning: "মনে রাখুন: সব পেমেন্ট অ্যাপে। নগদ বা বিকাশে সরাসরি টাকা চাওয়া বা দেওয়া নিষেধ।",
+    reportThis: "রিপোর্ট করুন",
+    phonePrivateHint: "অন্য যাত্রী বা ড্রাইভারকে কখনো দেখানো হয় না।",
     message: 'বার্তা',
     phoneWarning: 'নিরাপত্তা সতর্কতা: ফোন নম্বর শেয়ার করবেন না। বুকিং নিশ্চিত হলে অ্যাপেই যোগাযোগ করুন।',
     errorPrefix: 'ভুল:',
@@ -201,6 +209,14 @@ export const extraStrings: { bn: Record<string, string>; en: Record<string, stri
     notif_bookingCancelled: "একজন যাত্রী বাতিল করেছেন · {route}"
   },
   en: {
+    payInAppNotice: "Pay only through DeshRide. Never pay the driver directly in cash or bKash — off-app payments lose refunds and protection.",
+    payInAppShort: "Fares are paid in the app only — never directly in cash or bKash.",
+    chatPinnedNotice: "Pay only through DeshRide. Never pay the driver directly in cash or bKash — off-app payments lose refunds and protection. Phone numbers and contact details are hidden here.",
+    contactHiddenNote: "Contact details are hidden. Keep talking here so your trip stays protected.",
+    offAppPaymentNote: "Careful: don't pay outside the app. Only fares paid through DeshRide are covered by refunds and protection.",
+    paymentTypingWarning: "Remember: all payments go through the app. Asking for or paying cash or bKash directly isn't allowed.",
+    reportThis: "Report",
+    phonePrivateHint: "Never shown to other riders or drivers.",
     message: 'Message',
     phoneWarning: 'Safety warning: don’t share phone numbers. Once a booking is confirmed, talk in the app.',
     errorPrefix: 'Error:',

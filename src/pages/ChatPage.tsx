@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { containsPhoneNumber, getBooking, getMessages, getProfile, getRide, sendMessage } from "../lib/store";
+import {
+  containsContactInfo,
+  detectOffAppPayment,
+  getBooking,
+  getMessages,
+  getProfile,
+  getRide,
+  sendMessage
+} from "../lib/store";
+import { Icon } from "../components/Icons";
+import { ReportButton } from "../components/ReportDialog";
 import { useTranslation } from "../i18n";
 
 export function ChatPage() {
   const { bookingId } = useParams<{ bookingId: string }>();
   const { language, t } = useTranslation();
   const [inputText, setInputText] = useState("");
-  const [showWarning, setShowWarning] = useState(false);
+  const [warning, setWarning] = useState<"contact" | "payment" | null>(null);
   const [refresh, setRefresh] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -39,12 +49,15 @@ export function ChatPage() {
   }
 
   const messages = getMessages(booking.id);
-  const otherUserName = profile.id === booking.guestId ? ride.driver.name : booking.guestName;
+  const iAmGuest = profile.id === booking.guestId;
+  const otherUserName = iAmGuest ? ride.driver.name : booking.guestName;
+  const otherUserId = iAmGuest ? ride.driver.id : booking.guestId;
   const locale = language === "bn" ? "bn-BD" : "en-GB";
 
   function handleTextChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setInputText(e.target.value);
-    setShowWarning(containsPhoneNumber(e.target.value));
+    const val = e.target.value;
+    setInputText(val);
+    setWarning(containsContactInfo(val) ? "contact" : detectOffAppPayment(val) ? "payment" : null);
   }
 
   function handleSend(e: React.FormEvent) {
@@ -52,7 +65,7 @@ export function ChatPage() {
     const text = inputText.trim();
     if (!text) return;
     setInputText("");
-    setShowWarning(false);
+    setWarning(null);
     sendMessage(booking!.id, text);
     setRefresh((n) => n + 1);
   }
@@ -67,6 +80,11 @@ export function ChatPage() {
         <Link className="secondary-link" to="/rides">
           {t("myRides")}
         </Link>
+      </div>
+
+      <div className="chat-pinned" role="note">
+        <Icon name="shield" size={18} />
+        <span>{t("chatPinnedNotice")}</span>
       </div>
 
       <div className="chat-log" aria-live="polite">
@@ -84,6 +102,21 @@ export function ChatPage() {
                     {new Date(msg.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
+                {msg.flags?.includes("contact") && <p className="message-flag">{t("contactHiddenNote")}</p>}
+                {msg.flags?.includes("payment") && (
+                  <p className="message-flag message-flag--payment">
+                    {t("offAppPaymentNote")}{" "}
+                    {!isMe && (
+                      <ReportButton
+                        targetId={otherUserId}
+                        targetName={otherUserName}
+                        bookingId={booking.id}
+                        initialReason="offAppPayment"
+                        label={t("reportThis")}
+                      />
+                    )}
+                  </p>
+                )}
               </div>
             );
           })
@@ -91,7 +124,8 @@ export function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {showWarning && <div className="banner banner--warn">{t("phoneWarning")}</div>}
+      {warning === "contact" && <div className="banner banner--warn">{t("phoneWarning")}</div>}
+      {warning === "payment" && <div className="banner banner--warn">{t("paymentTypingWarning")}</div>}
 
       <form className="chat-compose" onSubmit={handleSend}>
         <input

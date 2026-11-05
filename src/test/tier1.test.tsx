@@ -235,7 +235,8 @@ describe('Tier 1: Feature Coverage (F1 - F7)', () => {
     renderApp(`/ride/${ride.id}`);
     
     // Should render payment details (e.g. escrow message, bKash approval, etc.)
-    const escrowNote = screen.queryByText(/escrow/i) || screen.queryByText(/দেশরাইডের কাছে জমা/i) || screen.queryByText(/bKash/i);
+    // The pay-in-app notice also mentions bKash, so more than one match is expected.
+    const escrowNote = screen.queryByText(/escrow/i) || screen.queryByText(/দেশরাইডের কাছে জমা/i) || screen.queryAllByText(/bKash/i)[0];
     expect(escrowNote).toBeInTheDocument();
   });
 

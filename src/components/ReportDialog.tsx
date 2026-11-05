@@ -12,12 +12,16 @@ export function ReportButton({
   targetId,
   targetName,
   bookingId,
-  compact = false
+  compact = false,
+  initialReason,
+  label
 }: {
   targetId: string;
   targetName: string;
   bookingId?: string;
   compact?: boolean;
+  initialReason?: ReportReason;
+  label?: string;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -26,16 +30,22 @@ export function ReportButton({
     <>
       <button
         type="button"
-        className={compact ? "menu-button" : "ghost-button"}
+        className={label ? "link-button" : compact ? "menu-button" : "ghost-button"}
         onClick={() => setOpen(true)}
         aria-label={t("reportOrBlock", { name: targetName })}
         title={t("reportOrBlock", { name: targetName })}
       >
-        <Icon name={compact ? "more" : "flag"} size={16} />
-        {!compact && t("reportOrBlockShort")}
+        {!label && <Icon name={compact ? "more" : "flag"} size={16} />}
+        {label ?? (!compact && t("reportOrBlockShort"))}
       </button>
       {open && (
-        <ReportDialog targetId={targetId} targetName={targetName} bookingId={bookingId} onClose={() => setOpen(false)} />
+        <ReportDialog
+          targetId={targetId}
+          targetName={targetName}
+          bookingId={bookingId}
+          initialReason={initialReason}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );
@@ -45,16 +55,18 @@ export function ReportDialog({
   targetId,
   targetName,
   bookingId,
+  initialReason,
   onClose
 }: {
   targetId: string;
   targetName: string;
   bookingId?: string;
+  initialReason?: ReportReason;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const alreadyBlocked = blockedIds().includes(targetId);
-  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [reason, setReason] = useState<ReportReason | null>(initialReason ?? null);
   const [note, setNote] = useState("");
   const [block, setBlock] = useState(alreadyBlocked);
   const [done, setDone] = useState<string | null>(null);

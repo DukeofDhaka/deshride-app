@@ -50,7 +50,7 @@ export function DriverProfileCard({ ride, showPlate }: { ride: Ride; showPlate: 
             {t("nidVerifiedBadge")}
           </span>
         )}
-        {d.phone && (
+        {d.verified && (
           <span className="badge">
             <Icon name="phone" size={14} />
             {t("phoneVerifiedBadge")}

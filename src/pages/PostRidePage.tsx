@@ -7,7 +7,7 @@ import { busFareEstimate, estimateDuration, formatBDT, roadKm, suggestedFare } f
 import {
   INSTANT_BOOK_SEATS,
   MAX_SERIES_DATES,
-  containsPhoneNumber,
+  containsContactInfo,
   createRide,
   createRideSeries,
   getProfile,
@@ -394,7 +394,7 @@ export function PostRidePage() {
               onChange={(e) => {
                 const val = e.target.value;
                 setNote(val);
-                setShowWarning(containsPhoneNumber(val));
+                setShowWarning(containsContactInfo(val));
               }}
             />
             {showWarning && (

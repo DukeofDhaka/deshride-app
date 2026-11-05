@@ -3,6 +3,7 @@ import { getPaymentMethod } from "../data/paymentMethods";
 import { formatBDT } from "../lib/geo";
 import { bookingFare, getBooking, getProfile, getRide } from "../lib/store";
 import { useTranslation } from "../i18n";
+import { PayInAppNotice } from "../components/PayInAppNotice";
 
 // What the rider paid, where the money sits now, and what came back.
 export function ReceiptPage() {
@@ -87,6 +88,7 @@ export function ReceiptPage() {
               ))}
             </ol>
             {booking.noShow === "driver" && <p className="detail-note">{t("driverNoShowRefund")}</p>}
+            <PayInAppNotice />
             <Link className="secondary-link" to="/rides">
               {t("viewInMyRides")}
             </Link>

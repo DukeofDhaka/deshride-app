@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { PAYMENT_METHODS, getPaymentMethod, type PaymentMethodId } from "../data/paymentMethods";
 import { estimateDuration, formatBDT, routeKm, segmentFare, stopTimes } from "../lib/geo";
 import {
-  containsPhoneNumber,
+  containsContactInfo,
   getProfile,
   getRide,
   liveDriverRating,
@@ -20,6 +20,7 @@ import { RouteTimeline } from "../components/RouteTimeline";
 import { TripSafety } from "../components/TripSafety";
 import { localeFor, timeOf } from "../components/RideCard";
 import { DriverProfileCard } from "../components/DriverProfileCard";
+import { PayInAppNotice } from "../components/PayInAppNotice";
 
 function formatDeparture(iso: string, language: string): string {
   return new Date(iso).toLocaleString(localeFor(language), {
@@ -263,14 +264,7 @@ export function RidePage() {
                 </span>
               </p>
               <p>{t(getPaymentMethod(myBooking.payMethod).confirmationNoteKey)}</p>
-              {confirmed && ride.driver.phone && (
-                <p>
-                  {t("callDriver", { name: ride.driver.name })}{" "}
-                  <a className="secondary-link" href={`tel:${ride.driver.phone}`}>
-                    {ride.driver.phone}
-                  </a>
-                </p>
-              )}
+              <PayInAppNotice />
               {confirmed && ride.status === "active" && (
                 <Link className="primary-button primary-button--full" to={`/chat/${myBooking.id}`}>
                   {t("message")}
@@ -350,7 +344,7 @@ export function RidePage() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setMessage(val);
-                    setShowMsgWarning(containsPhoneNumber(val));
+                    setShowMsgWarning(containsContactInfo(val));
                   }}
                 />
                 {showMsgWarning && <div className="banner banner--warn">{t("phoneWarning")}</div>}
@@ -374,6 +368,7 @@ export function RidePage() {
 
               {error && <p className="form-error">{error}</p>}
 
+              <PayInAppNotice />
               <button className="cta-button cta-button--full" type="submit">
                 {ride.instantBook && <Icon name="bolt" size={16} />}
                 {ride.instantBook ? t("bookNow") : t("requestToBook")}

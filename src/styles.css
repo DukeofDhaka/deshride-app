@@ -2049,11 +2049,60 @@ main {
 
 .message-wrapper {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .message-wrapper--me {
-  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.message-flag {
+  margin: 0;
+  max-width: 78%;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.message-flag--payment {
+  padding: 6px 10px;
+  border-radius: var(--r-s);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.link-button {
+  padding: 0;
+  font-weight: 700;
+  text-decoration: underline;
+  color: inherit;
+}
+
+.chat-pinned,
+.pay-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin: 0;
+  padding: var(--s-3);
+  border-radius: var(--r-m);
+  background: var(--held-bg);
+  color: var(--held);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.chat-pinned .icon,
+.pay-notice .icon {
+  margin-top: 1px;
+}
+
+.pay-notice--compact {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .message {

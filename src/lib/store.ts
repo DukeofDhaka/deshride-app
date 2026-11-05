@@ -18,6 +18,7 @@ import { useSyncExternalStore } from "react";
 import type { PaymentMethodId } from "../data/paymentMethods";
 import { localDateKey } from "./time";
 import { segmentFare } from "./geo";
+import { censorPhoneNumbers, guardMessage, SPLIT_WINDOW_MS } from "./contactGuard";
 
 const KEYS = {
   profile: "deshride.profile.v1",
@@ -203,7 +204,6 @@ export function createRide(input: NewRide): Ride {
       rating: rep.avg,
       trips: getStats().driverTrips,
       accent: "#2f6f64",
-      phone: profile.phone || undefined,
       verified: Boolean(profile.driver),
       plate: profile.driver?.plate,
       carColor: profile.driver?.carColor,
@@ -520,7 +520,6 @@ export function requestBooking(
     rideId,
     guestId: profile.id,
     guestName: profile.name || "Guest",
-    guestPhone: profile.phone || undefined,
     seats,
     payMethod,
     message: message ? censorPhoneNumbers(message.trim()) : undefined,
@@ -640,7 +639,7 @@ export function ensureSeed() {
   const seedRides: Ride[] = [
     {
       id: "ride-seed-1",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.75, 90.38, "Kalabagan bus stand, gate 2"),
       to: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle, Wells Park side"),
       stops: [spot("Cumilla", "Cumilla", 23.46, 91.18, "Matri Bhandar, highway side")],
@@ -657,7 +656,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-2",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.87, 90.4, "Uttara, Jasimuddin Road front gate"),
       to: spot("Sylhet", "Sylhet", 24.9, 91.87, "Amberkhana point"),
       departure: departureAt(1, 8, 0),
@@ -672,7 +671,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-3",
-      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95", phone: "01913-000333", verified: true, plate: "Dhaka Metro CHA 51-7720", carColor: "Black", memberSince: "2024-03-01" },
+      driver: { id: "drv-rafiq", name: "Rafiq Islam", rating: 4.7, trips: 54, accent: "#6b5b95", verified: true, plate: "Dhaka Metro CHA 51-7720", carColor: "Black", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.72, 90.38, "Jatrabari, Padma-bound counter side"),
       to: spot("Khulna", "Khulna", 22.82, 89.55, "Shibbari Mor"),
       departure: departureAt(2, 6, 45),
@@ -687,7 +686,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-4",
-      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", phone: "01711-000111", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
+      driver: { id: "drv-tanim", name: "Tanim Rahman", rating: 4.9, trips: 132, accent: "#2f6f64", verified: true, plate: "Dhaka Metro GA 23-4471", carColor: "Silver", memberSince: "2024-03-01" },
       from: spot("Chattogram", "Chattogram", 22.36, 91.83, "GEC Circle"),
       to: spot("Cox's Bazar", "Cox's Bazar", 21.44, 91.97, "Kolatoli Mor"),
       departure: departureAt(2, 9, 0),
@@ -702,7 +701,7 @@ export function ensureSeed() {
     },
     {
       id: "ride-seed-5",
-      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", phone: "01812-000222", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
+      driver: { id: "drv-mahira", name: "Mahira Chowdhury", rating: 4.8, trips: 87, accent: "#a4552f", verified: true, plate: "Dhaka Metro KHA 15-0932", carColor: "White", memberSince: "2024-03-01" },
       from: spot("Dhaka", "Dhaka", 23.79, 90.36, "Gabtoli, city side"),
       to: spot("Rajshahi", "Rajshahi", 24.37, 88.6, "Shaheb Bazar Zero Point"),
       departure: departureAt(3, 7, 0),
@@ -822,18 +821,7 @@ export function confirmReleaseAndRate(bookingId: string, stars: number | null) {
 }
 
 // --- messaging -------------------------------------------------------------
-// Bangladeshi mobile numbers in any common shape: +880 / 880 / 0 prefix,
-// Bangla or Latin digits, with spaces, dashes, dots or zero-width joiners.
-const PHONE_PATTERN =
-  /(?:\+?[8৮]\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১]|[0০]\s*[-()_./\u200B\u200D]*\s*[1১]|\(?\+?[8৮]\)?\s*[-()_./\u200B\u200D]*\s*[0০]?\s*[-()_./\u200B\u200D]*\s*[1১])\s*[-()_./\u200B\u200D]*\s*[0-9০-৯](?:\s*[-()_./\u200B\u200D]*\s*[0-9০-৯]){8}/.source;
-
-export function containsPhoneNumber(text: string): boolean {
-  return new RegExp(PHONE_PATTERN, "i").test(text);
-}
-
-export function censorPhoneNumbers(text: string): string {
-  return text.replace(new RegExp(PHONE_PATTERN, "gi"), "[HIDDEN]");
-}
+export { containsContactInfo, containsPhoneNumber, censorPhoneNumbers, detectOffAppPayment } from "./contactGuard";
 
 export function getBooking(id: string): Booking | undefined {
   return allBookings().find((b) => b.id === id);
@@ -853,12 +841,21 @@ export function sendMessage(bookingId: string, text: string): Message {
     throw new Error("Unauthorized");
   }
   const all = load<Message[]>("deshride.messages.v1", []);
+  // The sender's own recent messages here, so a number sent a few digits at
+  // a time is still caught.
+  const since = Date.now() - SPLIT_WINDOW_MS;
+  const history = all
+    .filter((m) => m.bookingId === bookingId && m.senderId === profile.id && Date.parse(m.createdAt) >= since)
+    .slice(-5)
+    .map((m) => m.text);
+  const guarded = guardMessage(text, history);
   const message: Message = {
     id: uid("msg"),
     bookingId,
     senderId: profile.id,
     senderName: profile.name || "User",
-    text: censorPhoneNumbers(text),
+    text: guarded.text,
+    ...(guarded.flags.length > 0 ? { flags: guarded.flags } : {}),
     createdAt: new Date().toISOString()
   };
   save("deshride.messages.v1", [...all, message]);
