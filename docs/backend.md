@@ -17,6 +17,7 @@ The app code is the same in both modes. Pages call `src/lib/store.ts` as before.
 | Booking rules | `supabase/migrations/0004_functions.sql` | All writes run as Postgres functions: seat checks under a row lock, blocks, expiry, refunds, no-shows, ratings, chat. |
 | Background jobs and live updates | `supabase/migrations/0005_cron_realtime.sql` | A `pg_cron` sweep runs every 5 minutes (expire requests, release fares, send trip reminders). Live updates use Supabase Realtime. |
 | Demo rides | `supabase/seed.sql` | Five rides from clearly marked demo drivers. Re-run it to refresh their dates. |
+| One-paste setup | `supabase/setup-all.sql` | All of the above in one file, built by `scripts/build-setup-sql.sh`. |
 | App side | `src/lib/backend/` | `client.ts` (connection), `mappers.ts` (rows ↔ app types), `sync.ts` (sign-in, pull, live updates, writes). |
 
 ## Set up a free project (one time, about 10 minutes)
@@ -25,9 +26,10 @@ The app code is the same in both modes. Pages call `src/lib/store.ts` as before.
    - **Region:** Southeast Asia (Singapore), the closest to Dhaka.
    - **Database password:** save it somewhere safe.
 2. **Allow automatic sign-in.** Go to **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**. Each phone then gets an account automatically on first open.
-3. **Run the database files.** Either:
-   - **SQL Editor:** open each file in `supabase/migrations/` in order (`0001` … `0005`), paste it into **SQL Editor** and press **Run**. Then do the same with `supabase/seed.sql`.
-   - **CLI:** run these one at a time:
+3. **Turn on the scheduler.** Go to **Database → Extensions**, find **pg_cron** and enable it. The setup file schedules the 5-minute sweep only when pg_cron is available.
+4. **Run the setup file.** Open `supabase/setup-all.sql`, paste all of it into **SQL Editor** and press **Run**. It holds every migration and the demo rides in one file, and it is safe to run again.
+   - To check the scheduler, run `select jobname, schedule from cron.job;` in the SQL Editor. It should list `deshride-sweep`.
+   - **CLI instead:** run these one at a time:
      ```bash
      npx supabase@2.121.0 login
      ```
@@ -37,7 +39,7 @@ The app code is the same in both modes. Pages call `src/lib/store.ts` as before.
      ```bash
      npx supabase@2.121.0 db push --include-seed
      ```
-4. **Turn on the scheduler.** Go to **Database → Extensions**, find **pg_cron** and enable it, then run `0005_cron_realtime.sql` again. It schedules the sweep only when pg_cron is available.
+   - After changing a migration or the seed, rebuild the file with `scripts/build-setup-sql.sh`. `supabase/tests/run.sh` fails if it is out of date.
 5. **Copy the keys.** Go to **Project Settings → API** and copy the **Project URL** and the **anon public** key. The anon key is meant to be public: row-level security decides what each user can see.
 6. **Tell the app.** Do whichever you need:
    - **Local development:** copy `.env.example` to `.env.local` and fill both values.

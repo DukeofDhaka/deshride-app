@@ -9,9 +9,15 @@ DB=deshride_test
 "${PSQL[@]}" -X -q -d postgres -c "drop database if exists $DB" -c "create database $DB"
 P=("${PSQL[@]}" -X -v ON_ERROR_STOP=1 -d "$DB")
 "${P[@]}" -q -f supabase/tests/00_local_bootstrap.sql
-for f in supabase/migrations/*.sql; do "${P[@]}" -q -f "$f" >/dev/null; done
-"${P[@]}" -q -f supabase/seed.sql
-echo "migrations + seed applied"
+# The one-paste setup file must match the migrations it is built from.
+if ! cmp -s <(scripts/build-setup-sql.sh --stdout) supabase/setup-all.sql; then
+  echo "supabase/setup-all.sql is out of date: run scripts/build-setup-sql.sh"
+  exit 1
+fi
+# Apply it twice: pasting it into SQL Editor a second time must not fail.
+"${P[@]}" -q -f supabase/setup-all.sql >/dev/null
+"${P[@]}" -q -f supabase/setup-all.sql >/dev/null
+echo "setup-all.sql applied (twice)"
 "${P[@]}" -Atq -v content="$(cat src/test/fixtures/guard-cases.json)" <<'SQL'
 select case when count(*) = 0 then 'GUARD PARITY OK' else 'GUARD PARITY FAILED: ' || string_agg(c->>'text', ' | ') end
 from (select jsonb_array_elements(:'content'::jsonb) c) cases
